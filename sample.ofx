@@ -67,7 +67,7 @@ NEWFILEUID:NONE
 					<DTUSER>20190101
 					<TRNAMT>-6.92
 					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Assurance dépendance 1.40 %
+					<NAME>Zukunftskeess/Assurance dependance 1.40 %
 				</STMTTRN>
 				<STMTTRN>
 					<TRNTYPE>DEBIT
@@ -75,7 +75,7 @@ NEWFILEUID:NONE
 					<DTUSER>20190101
 					<TRNAMT>-170.80
 					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Impôt
+					<NAME>Zukunftskeess/Impot
 				</STMTTRN>
 			</BANKTRANLIST>
 		</STMTRS>
