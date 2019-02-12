@@ -1,25 +1,216 @@
 package com.grunnpi.bankperfect;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
-
-public class RBCImportSalaire
+public class SalaryParser implements IStatementPreparator
 {
+    private static final Logger LOG = LoggerFactory.getLogger(SalaryParser.class);
 
     private static final String REPORT_DEJA_EFFECTUES = "Reports déjà effectués";
-    private List<RBCLineBean> listRBC;
     private final String path = "D:/Documents/[Mes Documents]/Gestion/Salaires Pierre/";
+    private List<RBCLineBean> listRBC;
+
+    public List<Statement> prepare(List<String> lines)
+    {
+        List<Statement> statements = new ArrayList<Statement>();
+        int nbLine = 0;
+        String addComment = "";
+        String salaireAnnee = "";
+        String salaireMois = "";
+        String salaireJour = "14";
+        String salaireDate = "";
+
+        listRBC = new ArrayList<RBCLineBean>();
+        RBCLineBean lineBean = null;
+
+        for (String line : lines)
+        {
+            nbLine++;
+            if (line.startsWith("Décompte de rémunération"))
+            {
+                // 1er ligne, c'est le libellé commun
+                addComment = line;
+                String releveDate = addComment.substring(addComment.length() - 7);
+
+                salaireAnnee = releveDate.substring(releveDate.length() - 4);
+                salaireMois = releveDate.substring(0, 2);
+
+                salaireDate = salaireJour + "/" + salaireMois + "/" + salaireAnnee;
+                LOG.info("Date=[{}]",salaireDate);
+            }
+            else
+            {
+                LOG.info("#### ({})[{}]",nbLine,line);
+                // ligne salaire bloc1
+                if (lineBean != null)
+                {
+                    listRBC.add(lineBean);
+                }
+                lineBean = new RBCLineBean();
+                lineBean.setDateOperation(salaireDate);
+
+                boolean montantSiNegatifAMettrePositif = false;
+                if (line.contains(REPORT_DEJA_EFFECTUES))
+                {
+                    line = line.replace("( ", "").replace(" )", "");
+                    montantSiNegatifAMettrePositif = true;
+                }
+
+                // virer les "(-)" en fin de ligne pour A reporter
+                if (line.contains(" (-)"))
+                {
+                    line = line.replace(" (-)", "");
+                    montantSiNegatifAMettrePositif = true;
+                }
+
+                String description = line;
+                String montant = "0";
+                int firstSpace = line.indexOf(" ");
+                int lastSpace = line.lastIndexOf(" ");
+                if (lastSpace > 0)
+                {
+                    montant = line.substring(lastSpace).trim();
+                }
+
+                if (StringUtils.isNumeric("" + line.charAt(0)))
+                {
+                    if ((firstSpace > 0) && (lastSpace > 0))
+                    {
+                        if (firstSpace != lastSpace)
+                        {
+                            description = line.substring(firstSpace + 1, lastSpace - 1);
+                        }
+                        else
+                        {
+                            description = line.substring(0, firstSpace);
+                        }
+
+                        int otherLast = description.lastIndexOf(" ");
+                        if (otherLast > 0)
+                        {
+                            description = description.substring(0, otherLast);
+                        }
+                        otherLast = description.lastIndexOf(" ");
+                        if (otherLast > 0)
+                        {
+                            description = description.substring(0, otherLast);
+                        }
+                    }
+                }
+                else
+                {
+                    try {
+                        description = line.substring(0, lastSpace);
+                    }catch(Exception e) {
+                        LOG.error("Substring {}",line);
+                    }
+
+                    String[] array = { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie Espèces 0.25 %",
+                            "Caisse de Pension 8.00 %", "Caisse de Pension NP 8.00 %", "Assurance dépendance 1.40 %",
+                            "Assurance dépendance NP 1.40 %", "Impôt d'équi budg temp 0.50 %",
+                            "Impôt d'équi budg temp NP 0.50 %" };
+
+                    boolean specialDebit = false;
+                    for (String check : array)
+                    {
+                        if (description.contains(check))
+                        {
+                            specialDebit = true;
+                            break;
+                        }
+                    }
+
+                    if (specialDebit)
+                    {
+                        int otherLast = description.lastIndexOf(" ");
+                        if (otherLast > 0)
+                        {
+                            description = description.substring(0, otherLast);
+                        }
+                        montant = "-" + montant;
+                    }
+                    else
+                    {
+                        if (description.equals("Impôt") || description.equals("Impôt NP"))
+                        {
+                            montant = "-" + montant;
+                        }
+                        else if (description.equals("CIS - CIM - CIP"))
+                        {
+                            if (montant.charAt(0) == '-')
+                            {
+                                montant = montant.substring(1);
+                            }
+                            else
+                            {
+                                montant = "-" + montant;
+                            }
+                        }
+                    }
+
+                }
+
+                montant = '"' + montant.replace(",", "") + '"';
+                String[] arrayForInformation = { "Imposable", "Imposable NP", "Net", "Total net à virer", "Brut total",
+                        "Cotisations totales", "Abattement", "Heures supplémentaires", "Suppléments DNF",
+                        "Frais de déplacement (FD)", "Autres exemptions", "Total net", "Avantage prêt immobilier",
+                        "Exemption prêt immobilier" };
+
+                boolean forInformation = false;
+                for (String check : arrayForInformation)
+                {
+                    if (description.equals(check))
+                    {
+                        forInformation = true;
+                        break;
+                    }
+                }
+
+                lineBean.setForInformation(forInformation);
+                lineBean.setDescription("RBC/" + description);
+
+                if (montantSiNegatifAMettrePositif)
+                {
+                    if (montant.contains("-"))
+                    {
+                        montant = montant.replace("-", "");
+                    }
+                    else
+                    {
+                        montant = montant.replaceFirst("\"", "\"-");
+                    }
+                }
+                lineBean.setMontant(montant);
+            }
+
+        }
+        if (lineBean != null)
+        {
+            listRBC.add(lineBean);
+        }
+
+        for (RBCLineBean cbBean : listRBC)
+        {
+            String description = cbBean.getDescription();
+            if (cbBean.isForInformation())
+            {
+
+            }
+            else
+            {
+                System.out.println(cbBean);
+            }
+            // nbLineNok++;
+        }
+        return statements;
+    }
 
     public void readFile(String filename, CharSequence USELES)
     {
@@ -35,7 +226,7 @@ public class RBCImportSalaire
             String salaireDate = "";
             listRBC = new ArrayList<RBCLineBean>();
             RBCLineBean lineBean = null;
-            for (String line; (line = br.readLine()) != null;)
+            for (String line; (line = br.readLine()) != null; )
             {
                 nbLine++;
                 // System.out.println(line);
@@ -124,8 +315,7 @@ public class RBCImportSalaire
                         // System.out.println("blocN [" + line + "]");
                         description = line.substring(0, lastSpace);
 
-                        String[] array =
-                        { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie Espèces 0.25 %",
+                        String[] array = { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie Espèces 0.25 %",
                                 "Caisse de Pension 8.00 %", "Caisse de Pension NP 8.00 %",
                                 "Assurance dépendance 1.40 %", "Assurance dépendance NP 1.40 %",
                                 "Impôt d'équi budg temp 0.50 %", "Impôt d'équi budg temp NP 0.50 %" };
@@ -183,10 +373,10 @@ public class RBCImportSalaire
                     // }
                     montant = '"' + montant.replace(",", "") + '"';
 
-                    String[] arrayForInformation =
-                    { "Imposable", "Imposable NP", "Net", "Total net à virer", "Brut total", "Cotisations totales",
-                            "Abattement", "Heures supplémentaires", "Suppléments DNF", "Frais de déplacement (FD)",
-                            "Autres exemptions", "Total net", "Avantage prêt immobilier", "Exemption prêt immobilier" };
+                    String[] arrayForInformation = { "Imposable", "Imposable NP", "Net", "Total net à virer",
+                            "Brut total", "Cotisations totales", "Abattement", "Heures supplémentaires",
+                            "Suppléments DNF", "Frais de déplacement (FD)", "Autres exemptions", "Total net",
+                            "Avantage prêt immobilier", "Exemption prêt immobilier" };
 
                     boolean forInformation = false;
                     for (String check : arrayForInformation)
@@ -290,7 +480,6 @@ public class RBCImportSalaire
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
     }
 
     /**
