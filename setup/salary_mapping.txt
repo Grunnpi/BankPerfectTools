@@ -1,1 +1,16 @@
-Salaire Mensuel Employ=RBC/Salaire Mensuel Employ�s
+Salaire Mensuel Employés=RBC/Salaire Mensuel Employés
+Prime Ancienneté=RBC/Prime Ancienneté
+13ième mois=RBC/13ième mois
+Maladie Soins  2.80 %=RBC/Maladie Soins  2.80 %
+Maladie Soins NP  2.80 %=RBC/Maladie Soins NP  2.80 %
+Maladie Espèces  0.25 %=RBC/Maladie Espèces  0.25 %
+Caisse de Pension  8.00 %=RBC/Caisse de Pension  8.00 %
+Caisse de Pension NP  8.00 %=RBC/Caisse de Pension NP  8.00 %
+Impôt NP=RBC/Impôt NP
+Impôt=RBC/Impôt
+CIS - CIM - CIP=RBC/CIS - CIM - CIP
+Assurance dépendance  1.40 %=RBC/Assurance dépendance  1.40 %
+Assurance dépendance NP  1.40 %=RBC/Assurance dépendance NP  1.40 %
+Régime compl.de pension 1,00=RBC/Régime compl.de pension 1,00
+Parking=RBC/Parking
+Chèques repas=RBC/Chèques repas

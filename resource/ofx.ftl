@@ -20,6 +20,7 @@ NEWFILEUID:NONE
 	</SONRS>
 </SIGNONMSGSRSV2>
 <BANKMSGSRSV2>
+    <#list myData as keyBP, myStatements>
 	<STMTTRNRS>
 		<TRNUID>20181129000000
 		<STATUS>
@@ -37,120 +38,20 @@ NEWFILEUID:NONE
 			<BANKTRANLIST>
 				<DTSTART>20190119000000
 				<DTEND>20190119000000
+                <#list myStatements as oneStatements>
 				<STMTTRN>
 					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>580.42
+					<#assign statementDate = oneStatements.getStatementDate()>
+					<DTPOSTED>${statementDate?replace("-", "")}
+					<DTUSER>${statementDate?replace("-", "")}
+					<TRNAMT>${oneStatements.getAmount()}
 					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Brut mensuel
+					<NAME>${oneStatements.getDescription()}
 				</STMTTRN>
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>-16.25
-					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Maladie Soins 2.80 %
-				</STMTTRN>
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>-46.43
-					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Caisse de Pension 8.00 %
-				</STMTTRN>
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>-6.92
-					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Assurance dependance 1.40 %
-				</STMTTRN>
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>-170.80
-					<FITID>L9JVJ28%CF
-					<NAME>Zukunftskeess/Impot
-				</STMTTRN>
+                </#list>
 			</BANKTRANLIST>
 		</STMTRS>
 	</STMTTRNRS>
-	<STMTTRNRS>
-		<TRNUID>20181129000000
-		<STATUS>
-			<CODE>0
-			<SEVERITY>INFO
-		</STATUS>
-		<STMTRS>
-			<CURDEF>EUR
-			<BANKACCTFROM>
-				<BANKID>88888
-				<BRANCHID>77777
-				<ACCTID>11111111111
-				<ACCTTYPE2>CHECKING
-			</BANKACCTFROM>
-			<BANKTRANLIST>
-				<DTSTART>20181115000000
-				<DTEND>20181127000000
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190101
-					<DTUSER>20190101
-					<TRNAMT>-0.00
-					<FITID>L9JVJ28%CF
-					<NAME>Rien chez Pierre 
-				</STMTTRN>
-			</BANKTRANLIST>
-			<LEDGERBAL>
-				<BALAMT>1495.72
-				<DTASOF>20181127000000
-			</LEDGERBAL>
-			<AVAILBAL>
-				<BALAMT>0.00
-				<DTASOF>20181127000000
-			</AVAILBAL>
-		</STMTRS>
-	</STMTTRNRS>
-	<STMTTRNRS>
-		<TRNUID>20181129000001
-		<STATUS>
-			<CODE>0
-			<SEVERITY>INFO
-		</STATUS>
-		<STMTRS>
-			<CURDEF>EUR
-			<BANKACCTFROM>
-				<BANKID>88888
-				<BRANCHID>77777
-				<ACCTID>22222222222
-				<ACCTTYPE2>CHECKING
-			</BANKACCTFROM>
-			<BANKTRANLIST>
-				<DTSTART>20181115000000
-				<DTEND>20181127000000
-				<STMTTRN>
-					<TRNTYPE>DEBIT
-					<DTPOSTED>20190118
-					<DTUSER>20190118
-					<TRNAMT>-50.00
-					<FITID>LF06$Q3LLF
-					<NAME>SAVEUR DU PAIN
-				</STMTTRN>				
-			</BANKTRANLIST>
-			<LEDGERBAL>
-				<BALAMT>5942.14
-				<DTASOF>20181127000000
-			</LEDGERBAL>
-			<AVAILBAL>
-				<BALAMT>0.00
-				<DTASOF>20181127000000
-			</AVAILBAL>
-		</STMTRS>
-	</STMTTRNRS>
+    </#list>
 </BANKMSGSRSV2>
 </OFX>
