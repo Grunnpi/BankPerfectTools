@@ -11,6 +11,36 @@ public class Statement
         return bank + "#" + branch + "#" + account;
     }
 
+    public void setAccountID(final AccountID accountID){
+        setBank(accountID.getBank());
+        setBranch(accountID.getBranch());
+        setAccount(accountID.getAccount());
+    }
+
+    public String getTier()
+    {
+        return tier;
+    }
+
+    public void setTier(String tier)
+    {
+        this.tier = tier;
+    }
+
+    private String tier;
+
+
+    public String getStatementDateVariable()
+    {
+        return statementDateVariable;
+    }
+
+    public void setStatementDateVariable(String statementDateVariable)
+    {
+        this.statementDateVariable = statementDateVariable;
+    }
+
+    private String statementDateVariable;
 
     private String bank;
     private String branch;

@@ -22,7 +22,7 @@ public class SalaryParser implements IStatementPreparator
     private final String path = "D:/Documents/[Mes Documents]/Gestion/Salaires Pierre/";
     private List<RBCLineBean> listRBC;
 
-    public List<Statement> prepare(List<String> lines,Map<String,String> mapping)
+    public List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature)
     {
         LOG.info("Prepare[{}] lines",lines.size());
         int nbLine = 0;
@@ -195,12 +195,17 @@ public class SalaryParser implements IStatementPreparator
             statements.addAll(payroll);
         }
 
+        String[] accountId = accountSignature.split(",");
         for ( Statement statement : statements) {
             String desc = statement.getRawLine();
             String couldBeAmount = StringUtils.substringAfterLast(desc.trim()," ");
             couldBeAmount = couldBeAmount.replace(",","");
             double amount = Double.parseDouble(couldBeAmount);
             statement.setAmount(amount);
+
+            statement.setBank(accountId[0]);
+            statement.setBranch(accountId[1]);
+            statement.setAccount(accountId[2]);
         }
 
         return statements;

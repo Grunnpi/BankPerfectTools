@@ -46,7 +46,8 @@ NEWFILEUID:NONE
 					<DTUSER>${statementDate?replace("-", "")}
 					<TRNAMT>${oneStatements.getAmount()}
 					<FITID>L9JVJ28%CF
-					<NAME>${oneStatements.getDescription()}
+					<NAME>${oneStatements.getTier()!""}
+					<MEMO>${oneStatements.getDescription()}
 				</STMTTRN>
                 </#list>
 			</BANKTRANLIST>

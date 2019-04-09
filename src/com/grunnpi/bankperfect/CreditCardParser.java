@@ -16,24 +16,18 @@ public class CreditCardParser implements IStatementPreparator
     private static final Logger LOG = LoggerFactory.getLogger(CreditCardParser.class);
     private static final String TOTAL_DES_MOUVEMENTS = "Total des mouvements - ";
 
-    public List<Statement> prepare(List<String> lines,Map<String,String> mapping)
+    public List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature)
     {
-
         double amountTotal = 0;
 
-        List<Statement> listStatement = new ArrayList<Statement>();
+        String cardType = "";
 
+        List<Statement> listStatement = new ArrayList<Statement>();
         LOG.info("Prepare[{}] lines",lines.size());
         {
-            int nbLine = 0;
-            int nbLineOk = 0;
-            int nbLineNok = 0;
-            String addComment = "";
             Statement newStatement = null;
             for (String line : lines)
             {
-                nbLine++;
-
                 if ( line.length() <= 2 ) {
                     //
                 }
@@ -43,10 +37,14 @@ public class CreditCardParser implements IStatementPreparator
                     total = total.replace(",",".");
                     amountTotal = Double.parseDouble(total) * -1;
                 }
-                else if (nbLine == 1)
-                {
-                    // 1er ligne, c'est le libellé commun
-                    addComment = line;
+                else if ( line.startsWith("Mouvement")) {
+                    if ( line.contains("VISA"))
+                    {
+                        cardType = "VISA";
+                    }
+                    else {
+                        cardType = "MASTERCARD";
+                    }
                 }
                 else if (line.charAt(2) == '/')
                 {
@@ -55,11 +53,13 @@ public class CreditCardParser implements IStatementPreparator
                     newStatement.setRawLine(line);
                     newStatement.setValid(true);
 
+                    newStatement.setAccountID(getAccount(accountSignature,cardType));
+
                     final String statementRawDate = line.substring(0,10);
                     final String statementYear = statementRawDate.substring(statementRawDate.length() - 4);
                     final String statementMonth = statementRawDate.substring(3,5);
                     final String statementDay = statementRawDate.substring(0,2);
-                    LOG.info("[{}] // [{}-{}-{}]",statementRawDate,statementYear,statementMonth,statementDay);
+//                    LOG.info("[{}] // [{}-{}-{}]",statementRawDate,statementYear,statementMonth,statementDay);
                     LocalDate localDate = LocalDate.of(Integer.valueOf(statementYear), Integer.valueOf(statementMonth), Integer.valueOf(statementDay));
 
                     newStatement.setStatementDate(localDate);
@@ -108,6 +108,31 @@ public class CreditCardParser implements IStatementPreparator
         }
 
         return listStatement;
+    }
+
+    private AccountID getAccount(final String accountSignature, final String cartType ) {
+
+        AccountID accountID = new AccountID();
+
+        boolean foundIt = false;
+        String[] accountPerCardIdList = accountSignature.split(";");
+        for ( String accountPerCardId : accountPerCardIdList ) {
+            String[] accountIdKeySplit = accountPerCardId.split("#");
+            if ( accountIdKeySplit[0].equals(cartType)) {
+                String[] accountIdString = accountIdKeySplit[1].split(",");
+                accountID.setBank(accountIdString[0]);
+                accountID.setBranch(accountIdString[1]);
+                accountID.setAccount(accountIdString[2]);
+                foundIt = true;
+                break;
+            }
+        }
+
+        if ( !foundIt) {
+            throw new RuntimeException("Cannot find CB signature for [" + cartType + "] in [" + accountSignature + "]");
+        }
+
+        return accountID;
     }
 
     public static boolean areEqualByThreeDecimalPlaces(double a, double b)

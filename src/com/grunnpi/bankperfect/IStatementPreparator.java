@@ -6,5 +6,5 @@ import java.util.Map;
 public interface IStatementPreparator
 {
 
-    List<Statement> prepare(List<String> lines,Map<String,String> mapping);
+    List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature);
 }
