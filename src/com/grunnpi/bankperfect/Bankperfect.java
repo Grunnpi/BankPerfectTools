@@ -32,7 +32,6 @@ public class Bankperfect
 
     private static final Logger LOG = LoggerFactory.getLogger(Bankperfect.class);
 
-
     private static final String CSV_C_FILE = "file";
     private static final String CSV_C_BANK = "bank";
     private static final String CSV_C_BRANCH = "branch";
@@ -40,75 +39,113 @@ public class Bankperfect
     private static final String CSV_C_DATE = "date";
     private static final String CSV_C_DESCRIPTION = "description";
     private static final String CSV_C_AMOUNT = "amount";
-
-    private String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_DESCRIPTION, CSV_C_AMOUNT};
-
-    // Config file
-    Configuration properties;
     private static final String INPUT_DIRECTORY_ROOT = "input_directory_root";
     private static final String SETUP_DIRECTORY_ROOT = "setup_directory_root";
-
     private static final String OUTPUT_DIRECTORY_ROOT = "output_directory_root";
-
     private static final String SALARY_DIR = "salary_dir";
     private static final String SALARY_ACCOUNT_ID = "salary_accountId";
     private static final String SALARY_EXCLUDE = "salary_exclude";
     private static final String SALARY_MAPPING = "salary_mapping";
-
     private static final String CB_DIR = "CB_dir";
     private static final String CB_ACCOUNT_ID = "CB_accountId";
     private static final String CB_EXCLUDE = "CB_exclude";
     private static final String CB_MAPPING = "CB_mapping";
-
+    private static final String IMMO_DIR = "Immo_dir";
+    private static final String IMMO_ACCOUNT_ID = "Immo_accountId";
+    private static final String IMMO_EXCLUDE = "Immo_exclude";
+    private static final String IMMO_MAPPING = "Immo_mapping";
     private static final String RECURRENT_DIR = "Recurrent_dir";
+    // Config file
+    Configuration properties;
+    private String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_DESCRIPTION,
+            CSV_C_AMOUNT };
 
-
-
-    private  String getSalaryAccount() {
-        return properties.getString(SALARY_ACCOUNT_ID);
+    public static void main(String[] args) throws ParseException, IOException, TemplateException
+    {
+        Bankperfect bankperfect = new Bankperfect();
+        bankperfect.runMe(args);
     }
 
-    private  String getCreditCardAccount() {
-        return properties.getString(CB_ACCOUNT_ID);
+    public static String[] readFileArray(File file)
+    {
+        List<String> excludeLines = null;
+        try
+        {
+            if (file.exists() && FileUtils.sizeOf(file) > 0)
+            {
+                excludeLines = FileUtils.readLines(file, "UTF-8");
+            }
+            else
+            {
+                LOG.warn("No exclude found [{}]", file.getName());
+                excludeLines = new ArrayList<String>();
+            }
+        }
+        catch (IOException e)
+        {
+            LOG.error("Exclude [{}] error", file.getName(), e);
+        }
+
+        String[] strings = {};
+        if (excludeLines.size() > 0)
+        {
+            strings = (String[]) excludeLines.toArray(new String[0]);
+        }
+        return strings;
     }
 
-    private  String getSalaryDir()
+    public static Map<String, String> readFileMap(File file)
+    {
+        Map<String, String> myMap = null;
+        try
+        {
+            myMap = new HashMap<String, String>();
+            if (file.exists() && FileUtils.sizeOf(file) > 0)
+            {
+                List<String> excludeLines = FileUtils.readLines(file, "UTF-8");
+                for (String line : excludeLines)
+                {
+                    if (line.contains("="))
+                    {
+                        final String key = StringUtils.substringBefore(line, "=");
+                        final String value = StringUtils.substringAfter(line, "=");
+                        myMap.put(key, value);
+                        //                        LOG.info("[{}]=[{}]",key,value);
+                    }
+                }
+                LOG.info("Map[{}].size={}", file.getAbsolutePath(), myMap.size());
+            }
+            else
+            {
+                LOG.warn("No map found [{}]", file.getName());
+            }
+        }
+        catch (IOException e)
+        {
+            LOG.error("Exclude [{}] error", file.getName(), e);
+        }
+
+        return myMap;
+    }
+
+    private String getAccount(final String key)
+    {
+        return properties.getString(key);
+    }
+
+    private String getDir(final String key)
     {
         String root = properties.getString(INPUT_DIRECTORY_ROOT);
-        String sub = properties.getString(SALARY_DIR);
-
+        String sub = properties.getString(key);
         return root + "/" + sub;
     }
 
-    private  String getCreditCardDir()
+    private File getSetupFile(final String key)
     {
-        String root = properties.getString(INPUT_DIRECTORY_ROOT);
-        String sub = properties.getString(CB_DIR);
-
-        return root + "/" + sub;
+        return new File(properties.getString(SETUP_DIRECTORY_ROOT), properties.getString(key));
     }
 
-    private  String getRecurrentDir()
-    {
-        String root = properties.getString(INPUT_DIRECTORY_ROOT);
-        String sub = properties.getString(RECURRENT_DIR);
-
-        return root + "/" + sub;
-    }
-
-    private File getCreditCardExclude() {
-        return new File(properties.getString(SETUP_DIRECTORY_ROOT),properties.getString(CB_EXCLUDE));
-    }
-    private File getCreditCardMapping() {
-        return new File(properties.getString(SETUP_DIRECTORY_ROOT),properties.getString(CB_MAPPING));
-    }
-
-    private File getSalaryExclude() {
-        return new File(properties.getString(SETUP_DIRECTORY_ROOT),properties.getString(SALARY_EXCLUDE));
-    }
-    private File getSalaryMapping() {
-        return new File(properties.getString(SETUP_DIRECTORY_ROOT),properties.getString(SALARY_MAPPING));
-    }
+    ;
 
     public String getCsvCacheFilename()
     {
@@ -120,143 +157,6 @@ public class Bankperfect
         return properties.getString(OUTPUT_DIRECTORY_ROOT) + "/output.ofx";
     }
 
-    // Process type
-    public enum fileType
-    {
-        cb, rbc, doenst, old
-    };
-
-   public static void main(String[] args) throws ParseException, IOException, TemplateException
-   {
-        Bankperfect bankperfect = new Bankperfect();
-        bankperfect.runMe(args);
-    }
-
-    private boolean loadConfig(String configFilePath) {
-        boolean configIsOk = true;
-        Configurations readConfig = new Configurations();
-        try
-        {
-            properties = readConfig.properties(new File(configFilePath));
-            LOG.info("Input={}",properties.getString(INPUT_DIRECTORY_ROOT));
-        }
-        catch (ConfigurationException e)
-        {
-            LOG.error("Load config[{}] failed",configFilePath,e);
-            configIsOk = false;
-        }
-        return configIsOk;
-    }
-
-    private List<Statement>  processFiles(final String accountSignature, final String directoryToFetch, final File exclude, final File mapping, final String fileExtention, IStatementPreparator iStatementPreparator)
-            throws IOException
-    {
-        List<Statement> statements = null;
-        Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
-        for ( File file : files )  {
-            LOG.info("process[{}]",file.getName());
-            List<String> lines = readFullPdf(file,exclude);
-            Map<String,String> mappingArray = this.readFileMap(mapping);
-
-            statements = iStatementPreparator.prepare(lines,mappingArray,accountSignature);
-        }
-        return statements;
-    }
-
-    private List<Statement> processRecurrent(final String directoryToFetch, final String fileExtention)
-            throws IOException
-    {
-        List<Statement> statements = new ArrayList<Statement>();
-
-        Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
-        Map<String, List<Statement>> statementPerAccount = null;
-        for ( File file : files )  {
-            statementPerAccount = readCsv(file.getAbsolutePath());
-            if ( statementPerAccount != null ) {
-                LOG.info("process.r[{}].nbAccount[{}]",file.getName(),statementPerAccount.size());
-            }
-            else {
-                LOG.info("process.r[{}] no stuff here",file.getName());
-            }
-        }
-
-        // collect single date
-        Map<String,LocalDate> mapVariableDate = new HashMap<String, LocalDate>();
-        for ( Map.Entry<String,List<Statement>> mapStatements : statementPerAccount.entrySet() ) {
-            for( Statement statement : mapStatements.getValue() ) {
-                if ( !StringUtils.isEmpty(statement.getStatementDateVariable())){
-                    if ( !mapVariableDate.containsKey(statement.getStatementDateVariable()) ) {
-                        mapVariableDate.put(statement.getStatementDateVariable(),null);
-                    }
-                }
-                statements.add(statement);
-            }
-        }
-
-        // input each
-        if ( mapVariableDate.size() > 0 ) {
-
-            for ( Map.Entry<String,LocalDate> entry : mapVariableDate.entrySet() ) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-                System.out.println("Input [" + entry.getKey() + "] (YYYY-MM-DD)");
-                String statementDateString = br.readLine();
-                try
-                {
-                    LocalDate statementDate = LocalDate.parse(statementDateString);
-                    mapVariableDate.put(entry.getKey(),statementDate);
-                }
-                catch (Exception e) {
-                    LOG.error("Date cannot be cast [{}]",statementDateString,e);
-                }
-            }
-
-            // assign it
-            for( Statement statement : statements ) {
-                if ( !StringUtils.isEmpty(statement.getStatementDateVariable())){
-                    statement.setStatementDate(mapVariableDate.get(statement.getStatementDateVariable()));
-                }
-            }
-        }
-
-        return statements;
-    }
-
-
-    private void saveAsCsv(List<Statement> statements) throws IOException
-    {
-        // save to .CSV stuff
-        FileWriter out2 = new FileWriter(getCsvCacheFilename());
-
-        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(getCsvCacheFilename(), true), StandardCharsets.UTF_8));
-        CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(CSV_HEADERS));
-
-        for (Statement statement : statements)
-        {
-            printer.printRecord("xxx",statement.getBank(),statement.getBranch(),statement.getAccount(),statement.getStatementDate(),statement.getDescription(),statement.getAmount());
-        }
-        printer.close();
-        LOG.info("CSV dumped {} lines",statements.size());
-    }
-
-    private boolean readConsole(final String question, final String response, final String positive) throws IOException
-    {
-       BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-       System.out.print(question + " [" + response + "] : ");
-       String s = br.readLine();
-       return s.equalsIgnoreCase(positive);
-    }
-
-    private String readConsoleMultipleChoice(final String question, final String[] response) throws IOException
-    {
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        System.out.println(question);
-        for ( String r : response ) {
-            System.out.println(" " + r);
-        }
-        String s = br.readLine();
-        return s;
-    }
-
     private void runMe(String[] args) throws ParseException, IOException, TemplateException
     {
         // process only if ok
@@ -264,37 +164,58 @@ public class Bankperfect
         {
             if (loadConfig(args[0]))
             {
-                String[] responses =  {"1. Full", "2. Step by step", "3. Parse & dump recurrent", "9. Give up" } ;
-                String processChoice = readConsoleMultipleChoice("Processing ?",responses);
+                String[] responses = { "1. Full", "2. Step by step", "3. Parse & dump recurrent", "4. Parse & dump Immo", "9. Give up" };
+                String processChoice = readConsoleMultipleChoice("Processing ?", responses);
 
-                if ( processChoice.matches("1|3") ||
-                     ( processChoice.matches("2") && readConsole("Parse and dump CSV ?","Y/N", "Y")) ) {
+                if (processChoice.matches("1|3|4") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
+                        "Y/N", "Y")))
+                {
 
-                    if ( processChoice.matches("1") ||
-                            ( processChoice.matches("2") && readConsole("New CSV ?","Y/N", "Y") )) {
+                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("New CSV ?", "Y/N",
+                            "Y")))
+                    {
                         FileUtils.deleteQuietly(new File(getCsvCacheFilename()));
                     }
 
                     List<Statement> allStatements = new ArrayList<Statement>();
                     // prepare statements
                     // * for salary
-                    if ( processChoice.matches("1") ||
-                            ( processChoice.matches("2") && readConsole("Salaray ?","Y/N", "Y") )) {
+                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("Salaray ?", "Y/N",
+                            "Y")))
+                    {
                         SalaryParser salaryParser = new SalaryParser();
-                        List<Statement> salaryStatements = processFiles(getSalaryAccount(),getSalaryDir(), getSalaryExclude(), getSalaryMapping(), "pdf", salaryParser);
-                        if ( salaryStatements != null ) {
+                        List<Statement> salaryStatements = processFiles(getAccount(SALARY_ACCOUNT_ID),
+                                getDir(SALARY_DIR), getSetupFile(SALARY_EXCLUDE), getSetupFile(SALARY_MAPPING), "pdf",
+                                salaryParser);
+                        if (salaryStatements != null)
+                        {
                             allStatements.addAll(salaryStatements);
                         }
                     }
 
                     // prepare statements
                     // * for Credit Card
-                    if ( processChoice.matches("1") ||
-                            ( processChoice.matches("2") && readConsole("Credit Card ?","Y/N", "Y")) )
+                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("Credit Card ?", "Y/N",
+                            "Y")))
                     {
                         CreditCardParser creditCardParser = new CreditCardParser();
-                        List<Statement> cbStatements = processFiles(getCreditCardAccount(), getCreditCardDir(),
-                                getCreditCardExclude(), getCreditCardMapping(), "pdf", creditCardParser);
+                        List<Statement> cbStatements = processFiles(getAccount(CB_ACCOUNT_ID), getDir(CB_DIR),
+                                getSetupFile(CB_EXCLUDE), getSetupFile(CB_MAPPING), "pdf", creditCardParser);
+                        if (cbStatements != null)
+                        {
+                            allStatements.addAll(cbStatements);
+                        }
+                    }
+
+                    // prepare statements
+                    // * for Immo
+                    if (processChoice.matches("1|4") || (processChoice.matches("2") && readConsole("Immo stuff ?", "Y/N",
+                            "Y")))
+                    {
+
+                        ImmoParser immoParser = new ImmoParser();
+                        List<Statement> cbStatements = processFiles(getAccount(IMMO_ACCOUNT_ID), getDir(IMMO_DIR),
+                                getSetupFile(IMMO_EXCLUDE), getSetupFile(IMMO_MAPPING), "pdf", immoParser);
                         if (cbStatements != null)
                         {
                             allStatements.addAll(cbStatements);
@@ -302,10 +223,10 @@ public class Bankperfect
                     }
 
                     // prepare recurrent stuff
-                    if ( processChoice.matches("1|3") ||
-                            ( processChoice.matches("2") && readConsole("Recurrent stuff ?","Y/N", "Y")) )
+                    if (processChoice.matches("1|3") || (processChoice.matches("2") && readConsole("Recurrent stuff ?",
+                            "Y/N", "Y")))
                     {
-                        List<Statement> recurrentStatements = processRecurrent(getRecurrentDir(),"csv");
+                        List<Statement> recurrentStatements = processRecurrent(getDir(RECURRENT_DIR), "csv");
                         if (recurrentStatements != null)
                         {
                             allStatements.addAll(recurrentStatements);
@@ -317,8 +238,8 @@ public class Bankperfect
                 }
 
                 // read CSV and prepare .ofx file
-                if ( processChoice.matches("1|3") ||
-                        ( processChoice.matches("2") && readConsole("Read CSV and dump OFX ?","Y/N", "Y")) )
+                if (processChoice.matches("1|3") || (processChoice.matches("2") && readConsole(
+                        "Read CSV and dump OFX ?", "Y/N", "Y")))
                 {
                     csvCacheToOfx();
                 }
@@ -360,17 +281,140 @@ public class Bankperfect
         }
     }
 
-    private Map<String,List<Statement>> readCsv(final String filename) throws IOException
+    private List<Statement> processFiles(final String accountSignature, final String directoryToFetch,
+            final File exclude, final File mapping, final String fileExtention,
+            IStatementPreparator iStatementPreparator) throws IOException
+    {
+        List<Statement> statements = null;
+        Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
+        for (File file : files)
+        {
+            LOG.info("process[{}]", file.getName());
+            List<String> lines = readFullPdf(file, exclude);
+            Map<String, String> mappingArray = this.readFileMap(mapping);
+
+            statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
+        }
+        return statements;
+    }
+
+    private List<Statement> processRecurrent(final String directoryToFetch, final String fileExtention)
+            throws IOException
+    {
+        List<Statement> statements = new ArrayList<Statement>();
+
+        Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
+        Map<String, List<Statement>> statementPerAccount = null;
+        for (File file : files)
+        {
+            statementPerAccount = readCsv(file.getAbsolutePath());
+            if (statementPerAccount != null)
+            {
+                LOG.info("process.r[{}].nbAccount[{}]", file.getName(), statementPerAccount.size());
+            }
+            else
+            {
+                LOG.info("process.r[{}] no stuff here", file.getName());
+            }
+        }
+
+        // collect single date
+        Map<String, LocalDate> mapVariableDate = new HashMap<String, LocalDate>();
+        for (Map.Entry<String, List<Statement>> mapStatements : statementPerAccount.entrySet())
+        {
+            for (Statement statement : mapStatements.getValue())
+            {
+                if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
+                {
+                    if (!mapVariableDate.containsKey(statement.getStatementDateVariable()))
+                    {
+                        mapVariableDate.put(statement.getStatementDateVariable(), null);
+                    }
+                }
+                statements.add(statement);
+            }
+        }
+
+        // input each
+        if (mapVariableDate.size() > 0)
+        {
+
+            for (Map.Entry<String, LocalDate> entry : mapVariableDate.entrySet())
+            {
+                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+                System.out.println("Input [" + entry.getKey() + "] (YYYY-MM-DD)");
+                String statementDateString = br.readLine();
+                try
+                {
+                    LocalDate statementDate = LocalDate.parse(statementDateString);
+                    mapVariableDate.put(entry.getKey(), statementDate);
+                }
+                catch (Exception e)
+                {
+                    LOG.error("Date cannot be cast [{}]", statementDateString, e);
+                }
+            }
+
+            // assign it
+            for (Statement statement : statements)
+            {
+                if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
+                {
+                    statement.setStatementDate(mapVariableDate.get(statement.getStatementDateVariable()));
+                }
+            }
+        }
+
+        return statements;
+    }
+
+    private void saveAsCsv(List<Statement> statements) throws IOException
+    {
+        // save to .CSV stuff
+        FileWriter out2 = new FileWriter(getCsvCacheFilename());
+
+        BufferedWriter out = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(getCsvCacheFilename(), true), StandardCharsets.UTF_8));
+        CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(CSV_HEADERS));
+
+        for (Statement statement : statements)
+        {
+            printer.printRecord("xxx", statement.getBank(), statement.getBranch(), statement.getAccount(),
+                    statement.getStatementDate(), statement.getDescription(), statement.getAmount());
+        }
+        printer.close();
+        LOG.info("CSV dumped {} lines", statements.size());
+    }
+
+    private boolean readConsole(final String question, final String response, final String positive) throws IOException
+    {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        System.out.print(question + " [" + response + "] : ");
+        String s = br.readLine();
+        return s.equalsIgnoreCase(positive);
+    }
+
+    private String readConsoleMultipleChoice(final String question, final String[] response) throws IOException
+    {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println(question);
+        for (String r : response)
+        {
+            System.out.println(" " + r);
+        }
+        String s = br.readLine();
+        return s;
+    }
+
+    private Map<String, List<Statement>> readCsv(final String filename) throws IOException
     {
         Reader in = new InputStreamReader(new FileInputStream(filename), "UTF-8");
         //Reader in = new FileReader(getCsvCacheFilename());
-        Iterable<CSVRecord> records = CSVFormat.DEFAULT
-                .withHeader(CSV_HEADERS)
-                .withFirstRecordAsHeader()
-                .parse(in);
+        Iterable<CSVRecord> records = CSVFormat.DEFAULT.withHeader(CSV_HEADERS).withFirstRecordAsHeader().parse(in);
 
-        Map<String,List<Statement>> statementPerAccount = new HashMap<String,List<Statement>>();
-        for (CSVRecord record : records) {
+        Map<String, List<Statement>> statementPerAccount = new HashMap<String, List<Statement>>();
+        for (CSVRecord record : records)
+        {
             Statement statement = new Statement();
 
             statement.setBank(record.get(CSV_C_BANK));
@@ -381,10 +425,12 @@ public class Bankperfect
 
             String statementDateString = record.get(CSV_C_DATE);
 
-            if ( statementDateString.startsWith("#")) {
+            if (statementDateString.startsWith("#"))
+            {
                 statement.setStatementDateVariable(statementDateString);
             }
-            else {
+            else
+            {
                 LocalDate statementDate = LocalDate.parse(statementDateString);
                 statement.setStatementDate(statementDate);
             }
@@ -394,8 +440,9 @@ public class Bankperfect
             statement.setAmount(amount);
 
             // get account ID
-            if ( !statementPerAccount.containsKey(statement.getBPKey())) {
-                statementPerAccount.put(statement.getBPKey(),new ArrayList<Statement>());
+            if (!statementPerAccount.containsKey(statement.getBPKey()))
+            {
+                statementPerAccount.put(statement.getBPKey(), new ArrayList<Statement>());
             }
             statementPerAccount.get(statement.getBPKey()).add(statement);
         }
@@ -408,71 +455,19 @@ public class Bankperfect
         Map<String, List<Statement>> statementPerAccount = readCsv(getCsvCacheFilename());
 
         // generate .ofx
-        OfxGenerator.generateOfx(getOfxCacheFilename(),statementPerAccount);
+        OfxGenerator.generateOfx(getOfxCacheFilename(), statementPerAccount);
         LOG.info("OFX generated !");
     }
 
-    public static String[] readFileArray(File file) {
-        List<String> excludeLines = null;
-        try
-        {
-            if ( FileUtils.sizeOf(file) >  0 ) {
-                excludeLines = FileUtils.readLines(file,"UTF-8");
-            }
-            else {
-                LOG.warn("No exclude found [{}]",file.getName());
-                excludeLines = new ArrayList<String>();
-            }
-        }
-        catch (IOException e)
-        {
-            LOG.error("Exclude [{}] error",file.getName(),e);
-        }
-
-        String[] strings = {};
-        if ( excludeLines.size()> 0 ) {
-            strings = (String[]) excludeLines.toArray(new String[0]);
-        }
-        return strings;
-    }
-
-    public static Map<String,String> readFileMap(File file) {
-        Map<String,String> myMap = null;
-        try
-        {
-            myMap = new HashMap<String,String>();
-            if ( FileUtils.sizeOf(file) >  0 ) {
-                List<String> excludeLines = FileUtils.readLines(file,"UTF-8");
-                for( String line : excludeLines ) {
-                    if ( line.contains("=")) {
-                        final String key = StringUtils.substringBefore(line,"=");
-                        final String value = StringUtils.substringAfter(line,"=");
-                        myMap.put(key,value);
-//                        LOG.info("[{}]=[{}]",key,value);
-                    }
-                }
-                LOG.info("Map[{}].size={}",file.getAbsolutePath(),myMap.size());
-            }
-            else {
-                LOG.warn("No map found [{}]",file.getName());
-            }
-        }
-        catch (IOException e)
-        {
-            LOG.error("Exclude [{}] error",file.getName(),e);
-        }
-
-        return myMap;
-    }
-
-
-    private List<String> readFullPdf(File pdfFile, File exclude){
+    private List<String> readFullPdf(File pdfFile, File exclude)
+    {
         List<String> lines = new ArrayList<String>();
         PDDocument pdDoc = null;
         COSDocument cosDoc = null;
         String parsedText;
-        try {
-            PDFParser parser = new PDFParser(new RandomAccessFile(pdfFile,"r"));
+        try
+        {
+            PDFParser parser = new PDFParser(new RandomAccessFile(pdfFile, "r"));
             parser.parse();
             cosDoc = parser.getDocument();
             pdDoc = new PDDocument(cosDoc);
@@ -484,26 +479,55 @@ public class Bankperfect
             String[] strings = this.readFileArray(exclude);
 
             StringTokenizer stringTokenizer = new StringTokenizer(parsedText);
-            while ( stringTokenizer.hasMoreTokens() ) {
+            while (stringTokenizer.hasMoreTokens())
+            {
                 String s = stringTokenizer.nextToken("\r\n");
-                if (!StringUtils.startsWithAny(s,strings) ) {
-                    //LOG.info("{}",s);
+                if (!StringUtils.startsWithAny(s, strings))
+                {
+                    LOG.info("{}",s);
                     lines.add(s);
                 }
             }
             //System.out.println(StringUtils.replace(parsedText,"\r","###\r"));
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
-            try {
+            try
+            {
                 if (cosDoc != null)
                     cosDoc.close();
                 if (pdDoc != null)
                     pdDoc.close();
-            } catch (Exception e1) {
+            }
+            catch (Exception e1)
+            {
                 e1.printStackTrace();
             }
         }
         return lines;
     }
 
+    private boolean loadConfig(String configFilePath)
+    {
+        boolean configIsOk = true;
+        Configurations readConfig = new Configurations();
+        try
+        {
+            properties = readConfig.properties(new File(configFilePath));
+            LOG.info("Input={}", properties.getString(INPUT_DIRECTORY_ROOT));
+        }
+        catch (ConfigurationException e)
+        {
+            LOG.error("Load config[{}] failed", configFilePath, e);
+            configIsOk = false;
+        }
+        return configIsOk;
+    }
+
+    // Process type
+    public enum fileType
+    {
+        cb, rbc, doenst, old
+    }
 }
