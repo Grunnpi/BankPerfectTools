@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ public class CreditCardParser implements IStatementPreparator
                     else {
                         cardType = "MASTERCARD";
                     }
+                    LOG.info("CreditCard[{}]",cardType);
                 }
                 else if (line.charAt(2) == '/')
                 {
@@ -137,14 +139,28 @@ public class CreditCardParser implements IStatementPreparator
 
     public static boolean areEqualByThreeDecimalPlaces(double a, double b)
     {
+
+        DecimalFormat df = new DecimalFormat("#.###");
+        df.setRoundingMode(RoundingMode.CEILING);
+
+        String as  = df.format(a);
+        String bs  = df.format(a);
+
+
+
+        //LOG.info("Compare[{}=={}] >> [{}]", as,bs,as.equals(bs));
+        return as.equals(bs);
+        /*
         a = a * 100;
         b = b * 100;
         int a1 = (int) a;
         int b1 = (int) b;
+        LOG.info("{} == {}",a1,b1);
         if (a1 == b1)
         {
             return true;
         }
         return false;
+        */
     }
 }

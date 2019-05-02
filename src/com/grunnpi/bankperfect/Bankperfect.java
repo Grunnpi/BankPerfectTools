@@ -135,9 +135,10 @@ public class Bankperfect
 
     private String getDir(final String key)
     {
-        String root = properties.getString(INPUT_DIRECTORY_ROOT);
-        String sub = properties.getString(key);
-        return root + "/" + sub;
+//        String root = properties.getString(INPUT_DIRECTORY_ROOT);
+//        String sub = properties.getString(key);
+//        return root + "/" + sub;
+        return properties.getString(key);
     }
 
     private File getSetupFile(final String key)
@@ -285,17 +286,21 @@ public class Bankperfect
             final File exclude, final File mapping, final String fileExtention,
             IStatementPreparator iStatementPreparator) throws IOException
     {
-        List<Statement> statements = null;
+        List<Statement> allStatements = new ArrayList<Statement>();
         Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
         for (File file : files)
         {
+            List<Statement> statements = null;
             LOG.info("process[{}]", file.getName());
             List<String> lines = readFullPdf(file, exclude);
             Map<String, String> mappingArray = this.readFileMap(mapping);
 
             statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
+            if ( statements != null && statements.size() > 0 ) {
+                allStatements.addAll(statements);
+            }
         }
-        return statements;
+        return allStatements;
     }
 
     private List<Statement> processRecurrent(final String directoryToFetch, final String fileExtention)
@@ -318,49 +323,51 @@ public class Bankperfect
             }
         }
 
-        // collect single date
-        Map<String, LocalDate> mapVariableDate = new HashMap<String, LocalDate>();
-        for (Map.Entry<String, List<Statement>> mapStatements : statementPerAccount.entrySet())
-        {
-            for (Statement statement : mapStatements.getValue())
+        if ( statementPerAccount != null && statementPerAccount.size() > 0 ) {
+            // collect single date
+            Map<String, LocalDate> mapVariableDate = new HashMap<String, LocalDate>();
+            for (Map.Entry<String, List<Statement>> mapStatements : statementPerAccount.entrySet())
             {
-                if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
+                for (Statement statement : mapStatements.getValue())
                 {
-                    if (!mapVariableDate.containsKey(statement.getStatementDateVariable()))
+                    if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
                     {
-                        mapVariableDate.put(statement.getStatementDateVariable(), null);
+                        if (!mapVariableDate.containsKey(statement.getStatementDateVariable()))
+                        {
+                            mapVariableDate.put(statement.getStatementDateVariable(), null);
+                        }
+                    }
+                    statements.add(statement);
+                }
+            }
+
+            // input each
+            if (mapVariableDate.size() > 0)
+            {
+
+                for (Map.Entry<String, LocalDate> entry : mapVariableDate.entrySet())
+                {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+                    System.out.println("Input [" + entry.getKey() + "] (YYYY-MM-DD)");
+                    String statementDateString = br.readLine();
+                    try
+                    {
+                        LocalDate statementDate = LocalDate.parse(statementDateString);
+                        mapVariableDate.put(entry.getKey(), statementDate);
+                    }
+                    catch (Exception e)
+                    {
+                        LOG.error("Date cannot be cast [{}]", statementDateString, e);
                     }
                 }
-                statements.add(statement);
-            }
-        }
 
-        // input each
-        if (mapVariableDate.size() > 0)
-        {
-
-            for (Map.Entry<String, LocalDate> entry : mapVariableDate.entrySet())
-            {
-                BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-                System.out.println("Input [" + entry.getKey() + "] (YYYY-MM-DD)");
-                String statementDateString = br.readLine();
-                try
+                // assign it
+                for (Statement statement : statements)
                 {
-                    LocalDate statementDate = LocalDate.parse(statementDateString);
-                    mapVariableDate.put(entry.getKey(), statementDate);
-                }
-                catch (Exception e)
-                {
-                    LOG.error("Date cannot be cast [{}]", statementDateString, e);
-                }
-            }
-
-            // assign it
-            for (Statement statement : statements)
-            {
-                if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
-                {
-                    statement.setStatementDate(mapVariableDate.get(statement.getStatementDateVariable()));
+                    if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
+                    {
+                        statement.setStatementDate(mapVariableDate.get(statement.getStatementDateVariable()));
+                    }
                 }
             }
         }
@@ -484,10 +491,11 @@ public class Bankperfect
                 String s = stringTokenizer.nextToken("\r\n");
                 if (!StringUtils.startsWithAny(s, strings))
                 {
-                    LOG.info("{}",s);
+//                    LOG.info("{}",s);
                     lines.add(s);
                 }
             }
+            cosDoc.close();
             //System.out.println(StringUtils.replace(parsedText,"\r","###\r"));
         }
         catch (Exception e)

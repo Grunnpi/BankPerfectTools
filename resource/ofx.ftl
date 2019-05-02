@@ -30,9 +30,9 @@ NEWFILEUID:NONE
 		<STMTRS>
 			<CURDEF>EUR
 			<BANKACCTFROM>
-				<BANKID>88888
-				<BRANCHID>77777
-				<ACCTID>33333333333
+				<BANKID>${keyBP?split("#")[0]}
+				<BRANCHID>${keyBP?split("#")[1]}
+				<ACCTID>${keyBP?split("#")[2]}
 				<ACCTTYPE2>CHECKING
 			</BANKACCTFROM>
 			<BANKTRANLIST>
