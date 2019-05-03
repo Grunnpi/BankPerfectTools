@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class CreditCardParser implements IStatementPreparator
+public class CreditCardParser extends  AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(CreditCardParser.class);
     private static final String TOTAL_DES_MOUVEMENTS = "Total des mouvements - ";
@@ -110,57 +110,5 @@ public class CreditCardParser implements IStatementPreparator
         }
 
         return listStatement;
-    }
-
-    private AccountID getAccount(final String accountSignature, final String cartType ) {
-
-        AccountID accountID = new AccountID();
-
-        boolean foundIt = false;
-        String[] accountPerCardIdList = accountSignature.split(";");
-        for ( String accountPerCardId : accountPerCardIdList ) {
-            String[] accountIdKeySplit = accountPerCardId.split("#");
-            if ( accountIdKeySplit[0].equals(cartType)) {
-                String[] accountIdString = accountIdKeySplit[1].split(",");
-                accountID.setBank(accountIdString[0]);
-                accountID.setBranch(accountIdString[1]);
-                accountID.setAccount(accountIdString[2]);
-                foundIt = true;
-                break;
-            }
-        }
-
-        if ( !foundIt) {
-            throw new RuntimeException("Cannot find CB signature for [" + cartType + "] in [" + accountSignature + "]");
-        }
-
-        return accountID;
-    }
-
-    public static boolean areEqualByThreeDecimalPlaces(double a, double b)
-    {
-
-        DecimalFormat df = new DecimalFormat("#.###");
-        df.setRoundingMode(RoundingMode.CEILING);
-
-        String as  = df.format(a);
-        String bs  = df.format(a);
-
-
-
-        //LOG.info("Compare[{}=={}] >> [{}]", as,bs,as.equals(bs));
-        return as.equals(bs);
-        /*
-        a = a * 100;
-        b = b * 100;
-        int a1 = (int) a;
-        int b1 = (int) b;
-        LOG.info("{} == {}",a1,b1);
-        if (a1 == b1)
-        {
-            return true;
-        }
-        return false;
-        */
     }
 }

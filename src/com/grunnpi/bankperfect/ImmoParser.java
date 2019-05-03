@@ -1,21 +1,21 @@
 package com.grunnpi.bankperfect;
 
+import javafx.scene.input.DataFormat;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.text.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class ImmoParser implements IStatementPreparator
+public class ImmoParser extends  AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(ImmoParser.class);
-
-    private List<DoenstLineBean> listCB;
-    private final String path = "D:/Documents/[Mes Documents]/Gestion/_ADMIN/SCI/Decomptes ";
 
     public List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature)
     {
@@ -25,7 +25,6 @@ public class ImmoParser implements IStatementPreparator
             int nbLineOk = 0;
             int nbLineNok = 0;
             String addComment = "";
-            listCB = new ArrayList<DoenstLineBean>();
             DoenstLineBean lineBean = null;
 
             String theBien = "";
@@ -62,32 +61,48 @@ public class ImmoParser implements IStatementPreparator
                 if ( !immoOwnerFound )
                 {
                     // 1er ligne, num décompte + date
-                    if (line.contains("SCI JEMASAREL"))
+                    if (line.contains("SCI JEMASARAEL") && line.contains("Relevé") )
                     {
-                        line = line.replace("Madame SCI JEMASAREL (126 / Relevé 0) Décompte n°", "");
-                        theOwner = "SCI JEMASAREL";
-                        thePath = path + "Beethoven/";
+//                        line = line.replace("Madame SCI JEMASARAEL", "");
+//                        line = line.replace("(126 / Relevé 0) Décompte n°", "");
+                        line = StringUtils.substringAfterLast(line,"Décompte n°");
+                        line = line.trim();
+                        theOwner = "SCI JEMASARAEL";
                         immoOwnerFound = true;
                     }
-                    else if (line.contains("Mr & Mme GRUNNAGEL"))
+                    else if ((line.contains("Mr & Mme GRUNNAGEL") || line.contains("Mr & Mme   GRUNNAGEL")) && line.contains("Relevé"))
                     {
-                        line = line.replace("Mr & Mme GRUNNAGEL (55 / Relevé 0) Décompte n°", "");
+                        //line = line.replace("Mr & Mme GRUNNAGEL", "");
+                        //line = line.replace("(55 / Relevé 0) Décompte n°", "");
+                        line = StringUtils.substringAfterLast(line,"n°");
+                        line = line.trim();
                         theOwner = "Mr & Mme GRUNNAGEL";
-                        thePath = path + "Bellevue/";
                         immoOwnerFound = true;
                     }
 
-                    String[] lineSplit = line.split(" du ");
-                    if ( lineSplit.length > 1 ) {
-                        theDecompte = lineSplit[0];
-                        theDateTraitement = lineSplit[1];
-                    }
-                    else {
-                        // skip this line
-                        LOG.info(">> skip this line");
+                    if ( immoOwnerFound ) {
+                        String[] lineSplit = line.split("du ");
+                        if ( lineSplit.length > 1 ) {
+                            theDecompte = lineSplit[0].trim();
+                            theDateTraitement = lineSplit[1];
+
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                            LocalDate statementDate = LocalDate.parse(theDateTraitement,formatter);
+
+                            DateTimeFormatter formatterDate = DateTimeFormatter.ofPattern("MMMM yyyy",Locale.FRANCE);
+                            theDateTransactionLast = statementDate.format(formatterDate);
+                            LOG.info("Owner[{}]Number[{}]-Date[{}]({})",theOwner,theDecompte,theDateTraitement,theDateTransactionLast);
+                        }
+                        else {
+                            // skip this line
+                            LOG.info(">> skip this line [{}]",line);
+                        }
                     }
                 }
-                else if (line.startsWith("Sous-totaux "))
+                else if ( StringUtils.isEmpty(line.trim())) {
+
+                }
+                else if (line.contains("Sous-totaux "))
                 {
                     isEcritureLot = false;
                     isStuffBail = false;
@@ -97,7 +112,6 @@ public class ImmoParser implements IStatementPreparator
                     theBail = line.replace("Bail ", "");
                     isStuffBail = true;
                 }
-
                 else if (line.startsWith("Immeuble 36 rue Beethoven"))
                 {
                     theBien = "Beethoven";
@@ -152,10 +166,11 @@ public class ImmoParser implements IStatementPreparator
                     isEcritureLot = false;
                     isStuffBail = false;
                 }
-                else if (line.startsWith("Solde en votre faveur au "))
+                else if (line.contains("Solde en votre faveur au "))
                 {
-                    theSolde = line.replace("Solde en votre faveur au ", "");
-                    theSolde = StringUtils.substringAfter(theSolde, " ");
+                    theSolde = line.replace("Solde en votre faveur au", "@");
+                    theSolde = StringUtils.substringBefore(theSolde, "@");
+//                    LOG.info("TheSolde={}",theSolde);
                     isStuffBail = false;
                 }
                 else if (line.startsWith("Loyer ") || line.startsWith("Provision charges courantes ")
@@ -178,22 +193,23 @@ public class ImmoParser implements IStatementPreparator
 
                         line = line.replace("Garantie loyers impayés (GLI) ", "");
                         line = StringUtils.substringAfter(line, ") ");
-                        line = theDateTransactionLast + " 5,84 " + line;
+                        LOG.info("XXX [{}] - [{}]",theDateTransactionLast,line);
+                        line = theDateTransactionLast + " " + line + "5,84";
                     }
                     else if (line.startsWith("Assurance loyers impayés"))
                     {
                         theOperation = "Assurance";
                         line = line.replace("Assurance loyers impayés ", theDateTransactionLast + " 5,84 ");
                     }
-                    else if (line.startsWith("Honoraires de gestion 5,84% HT "))
+                    else if (line.startsWith("Honoraires de gestion 5,84% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
+                        line = theDateTransactionLast + " " + StringUtils.substringAfterLast(line, ") ") + "5,84";
                     }
-                    else if (line.startsWith("Honoraires de gestion 7,00% HT "))
+                    else if (line.startsWith("Honoraires de gestion 7,00% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
+                        line = theDateTransactionLast + " " + StringUtils.substringAfterLast(line, ") ") + "5,84";
                     }
                     else
                     {
@@ -201,33 +217,46 @@ public class ImmoParser implements IStatementPreparator
                         line = line.replace("Loyer ", "");
                     }
 
-                    String[] split = null;
-                    if (line.contains(" 5,84 "))
+                    if (line.endsWith("5,84"))
                     {
-                        split = line.split(" 5,84 ");
+                        line = line.replace("5,84","");
+                    }
+                    else if (line.endsWith("7,00"))
+                    {
+                        line = line.replace("7,00","");
+                    }
+                    else if (line.contains(" 5,84"))
+                    {
+                        line = line.replace(" 5,84 ","");
                     }
                     else if (line.contains(" 7,00 "))
                     {
-                        split = line.split(" 7,00 ");
+                        line = line.replace(" 7,00 ","");
                     }
                     else
                     {
-                        System.err.println("line [" + line + "]");
+                        LOG.error("line [{}] without 5,84 or 7,00 at the end",line);
                     }
 
-                    theDateTransaction = split[0];
-
+                    theDateTransaction = line;
                     theDateTransaction = theDateTransaction.replace(" (solde)", "");
                     theDateTransaction = theDateTransaction.replace(" (partiel)", "");
                     theDateTransaction = theDateTransaction.replace(" (reliquat)", "");
                     // theDateTransaction = theDateTransaction.toLowerCase();
 
-                    theDateTransactionLast = theDateTransaction;
 
-                    String[] dateSplit = theDateTransaction.split(" ");
+                    //String[] dateSplit = theDateTransaction.split(" ");
+                    String dateSplited = StringUtils.substringBeforeLast(theDateTransaction," ");
+                    String afterDateSplited = StringUtils.substringAfterLast(theDateTransaction," ");
 
+                    theDateTransactionLast = dateSplited;
+                    if ( StringUtils.isEmpty(dateSplited)) {
+                        LOG.warn("No date here [{}] > [{}]",line,dateSplited);
+                    }
                     try
                     {
+                        String[] dateSplit = dateSplited.split(" ");
+
                         String mois = dateSplit[0];
                         if (mois.equals("AOUT"))
                         {
@@ -237,7 +266,7 @@ public class ImmoParser implements IStatementPreparator
                         {
                             mois = "Décembre";
                         }
-                        Date date = new SimpleDateFormat("MMMM").parse(mois);
+                        Date date = new SimpleDateFormat("MMMM", Locale.FRANCE).parse(mois);
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(date);
 
@@ -253,22 +282,21 @@ public class ImmoParser implements IStatementPreparator
                     }
                     catch (Exception e)
                     {
-                        System.err.println("Date = " + theDateTransaction);
+                        LOG.error("Creating date[{}]>[{}]",theDateTransaction,dateSplited,e);
+                        //System.err.println("Date = " + theDateTransaction);
                     }
 
                     // TODO: faut virer le nom du bail dans la description
-                    theDescription = split[0];
-
+                    theDescription = dateSplited;
                     theDescription = theDescription.replace(" MME GASPARINI CECIL", "");
                     theDescription = theDescription.replace(" MLLE MICHELE NGATOU", "");
                     theDescription = theDescription.replace(" MME JEANNINE FRIGOL", "");
 
-                    theMontant = theSignePositive ? split[1] : "-" + split[1];
+                    theMontant = theSignePositive ? afterDateSplited : "-" + afterDateSplited;
                     theType = theSignePositive ? "Versement" : "Versement";
 
                     isRealLine = true;
                 }
-
                 else if (isEcritureLot)
                 {
                     // Ligne de travaux
@@ -294,49 +322,58 @@ public class ImmoParser implements IStatementPreparator
 
                 if (isRealLine)
                 {
-                    lineBean = new DoenstLineBean();
+                    String description = theBien + "/Decompte_" + theDecompte + "/"
+                            + upperCaseFirst(theDescription.toLowerCase()) + "/" + theTypeLot + "/" + theOperation;
 
-                    lineBean.setBail(theBail);
-                    lineBean.setLot(theTypeLot);
-                    lineBean.setOperation(theOperation);
-                    lineBean.setDateTransaction(theDateTransaction);
-                    lineBean.setDateTraitement(theDateTraitement);
-                    lineBean.setMontant(theMontant);
-                    lineBean.setType(theType);
-                    lineBean.setDescription(theBien + "/Decompte_" + theDecompte + "/"
-                            + upperCaseFirst(theDescription.toLowerCase()) + "/" + theTypeLot + "/" + theOperation);
+                    Statement statement = new Statement();
+                    statement.setDescription(description);
+                    Double amount = null;
+                    try {
+                        amount = Double.parseDouble(theMontant.replace(",",".").replace(" ",""));
+                    }
+                    catch (Exception e) {
+                        LOG.error("Amout cast[{}] error",theMontant,e);
+                    }
+                    statement.setAmount(amount);
 
-                    System.out.println(lineBean);
+                    // DD/MM/YYYY > YYYY-MM-DD
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                    LocalDate statementDate = LocalDate.parse(theDateTraitement,formatter);
 
-                    listCB.add(lineBean);
+                    statement.setStatementDate(statementDate);
+                    listStatement.add(statement);
                 }
             }
 
-            System.out.println("Nb Ligne = " + listCB.size());
-
+//            LOG.info("Nb Ligne={}",listStatement.size());
+            double amountTotalComputed = 0.0;
+            for (Statement statement : listStatement)
             {
-                if ( theDateTraitement.length() > 10) {
-                    String releveDate = theDateTraitement.substring(theDateTraitement.length() - 10);
-                    System.out.println(releveDate);
-                    double total = 0.0;
-                    for (DoenstLineBean cbBean : listCB)
-                    {
+                // sum
+                amountTotalComputed += statement.getAmount();
 
-                        String stringMontant = cbBean.getMontant().replace("\"", "").replace(" ", "").replace(".", "")
-                                .replace(",", ".");
-                        double montant = Double.parseDouble(stringMontant);
-                        total += montant;
-                    }
-                    System.out.println("Total = " + total + "/Pdf = " + theSolde);
+                // add account
+                statement.setAccountID(getAccount(accountSignature,theBien));
+            }
+
+            theSolde = theSolde.replace(" ","").replace(",",".");
+            if ( StringUtils.isEmpty(theSolde)) {
+                LOG.error("No solde found !");
+            }
+            else {
+                Double amountTotal = Double.parseDouble(theSolde);
+                DecimalFormat df = new DecimalFormat("#.00");
+                if ( areEqualByThreeDecimalPlaces(amountTotal,amountTotalComputed) ) {
+                    LOG.info("Total [{}]==[{}] is OK [{}]",df.format(amountTotal),df.format(amountTotalComputed),theOwner);
                 }
                 else {
-                    LOG.error("No date ?! [{}]",theDateTraitement);
+                    LOG.error("Total [{}]<>[{}] is NOT OK [{}]",df.format(amountTotal),df.format(amountTotalComputed),theOwner);
                 }
-
             }
         }
         return listStatement;
     }
+
 
     public static String upperCaseFirst(String value)
     {
@@ -349,21 +386,5 @@ public class ImmoParser implements IStatementPreparator
             return new String(array);
         }
         else  return "";
-    }
-
-    /**
-     * @return the listCB
-     */
-    public List<DoenstLineBean> getListCB()
-    {
-        return listCB;
-    }
-
-    /**
-     * @param listCB the listCB to set
-     */
-    public void setListCB(List<DoenstLineBean> listCB)
-    {
-        this.listCB = listCB;
     }
 }

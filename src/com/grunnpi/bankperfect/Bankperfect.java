@@ -1,6 +1,7 @@
 package com.grunnpi.bankperfect;
 
 import freemarker.template.TemplateException;
+import io.github.jonathanlink.PDFLayoutTextStripper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -77,7 +78,7 @@ public class Bankperfect
             }
             else
             {
-                LOG.warn("No exclude found [{}]", file.getName());
+                LOG.info("No exclude found [{}]", file.getName());
                 excludeLines = new ArrayList<String>();
             }
         }
@@ -117,7 +118,7 @@ public class Bankperfect
             }
             else
             {
-                LOG.warn("No map found [{}]", file.getName());
+                LOG.info("No map found [{}]", file.getName());
             }
         }
         catch (IOException e)
@@ -187,7 +188,7 @@ public class Bankperfect
                         SalaryParser salaryParser = new SalaryParser();
                         List<Statement> salaryStatements = processFiles(getAccount(SALARY_ACCOUNT_ID),
                                 getDir(SALARY_DIR), getSetupFile(SALARY_EXCLUDE), getSetupFile(SALARY_MAPPING), "pdf",
-                                salaryParser);
+                                salaryParser,false);
                         if (salaryStatements != null)
                         {
                             allStatements.addAll(salaryStatements);
@@ -201,7 +202,7 @@ public class Bankperfect
                     {
                         CreditCardParser creditCardParser = new CreditCardParser();
                         List<Statement> cbStatements = processFiles(getAccount(CB_ACCOUNT_ID), getDir(CB_DIR),
-                                getSetupFile(CB_EXCLUDE), getSetupFile(CB_MAPPING), "pdf", creditCardParser);
+                                getSetupFile(CB_EXCLUDE), getSetupFile(CB_MAPPING), "pdf", creditCardParser,false);
                         if (cbStatements != null)
                         {
                             allStatements.addAll(cbStatements);
@@ -216,7 +217,7 @@ public class Bankperfect
 
                         ImmoParser immoParser = new ImmoParser();
                         List<Statement> cbStatements = processFiles(getAccount(IMMO_ACCOUNT_ID), getDir(IMMO_DIR),
-                                getSetupFile(IMMO_EXCLUDE), getSetupFile(IMMO_MAPPING), "pdf", immoParser);
+                                getSetupFile(IMMO_EXCLUDE), getSetupFile(IMMO_MAPPING), "pdf", immoParser,true);
                         if (cbStatements != null)
                         {
                             allStatements.addAll(cbStatements);
@@ -284,7 +285,7 @@ public class Bankperfect
 
     private List<Statement> processFiles(final String accountSignature, final String directoryToFetch,
             final File exclude, final File mapping, final String fileExtention,
-            IStatementPreparator iStatementPreparator) throws IOException
+            IStatementPreparator iStatementPreparator,final boolean layoutStripper) throws IOException
     {
         List<Statement> allStatements = new ArrayList<Statement>();
         Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
@@ -292,7 +293,7 @@ public class Bankperfect
         {
             List<Statement> statements = null;
             LOG.info("process[{}]", file.getName());
-            List<String> lines = readFullPdf(file, exclude);
+            List<String> lines = readFullPdf(file, exclude,layoutStripper);
             Map<String, String> mappingArray = this.readFileMap(mapping);
 
             statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
@@ -466,7 +467,7 @@ public class Bankperfect
         LOG.info("OFX generated !");
     }
 
-    private List<String> readFullPdf(File pdfFile, File exclude)
+    private List<String> readFullPdf(File pdfFile, File exclude, final boolean layoutStripper)
     {
         List<String> lines = new ArrayList<String>();
         PDDocument pdDoc = null;
@@ -480,7 +481,15 @@ public class Bankperfect
             pdDoc = new PDDocument(cosDoc);
 
             PDFTextStripper pdfStripper = new PDFTextStripper();
-            parsedText = pdfStripper.getText(pdDoc);
+
+            PDFTextStripper pdfTextStripper = new PDFLayoutTextStripper();
+
+            if ( layoutStripper ) {
+                parsedText = pdfTextStripper.getText(pdDoc);
+            }
+            else {
+                parsedText = pdfStripper.getText(pdDoc);
+            }
 
             // lines to ignore
             String[] strings = this.readFileArray(exclude);
@@ -489,8 +498,12 @@ public class Bankperfect
             while (stringTokenizer.hasMoreTokens())
             {
                 String s = stringTokenizer.nextToken("\r\n");
-                if (!StringUtils.startsWithAny(s, strings))
+                s = StringUtils.trimToEmpty(s);
+                if (!StringUtils.startsWithAny(s, strings) && !StringUtils.isEmpty(s))
                 {
+                    if ( layoutStripper ) {
+                        s = s.trim().replaceAll(" +", " ");
+                    }
 //                    LOG.info("{}",s);
                     lines.add(s);
                 }
