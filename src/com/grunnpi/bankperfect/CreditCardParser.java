@@ -22,6 +22,7 @@ public class CreditCardParser extends  AbstractParser implements IStatementPrepa
         double amountTotal = 0;
 
         String cardType = "";
+        String releveDate = "";
 
         List<Statement> listStatement = new ArrayList<Statement>();
         LOG.info("Prepare[{}] lines",lines.size());
@@ -38,6 +39,10 @@ public class CreditCardParser extends  AbstractParser implements IStatementPrepa
                     total = total.replace(".","");
                     total = total.replace(",",".");
                     amountTotal = Double.parseDouble(total) * -1;
+                }
+                else if ( line.startsWith("Relevé de carte(s) au")) {
+                    releveDate = line.replace("Relevé de carte(s) au ","");
+                    LOG.info("Relevé de carte(s) au [{}]",releveDate);
                 }
                 else if ( line.startsWith("Mouvement")) {
                     if ( line.contains("VISA"))
@@ -92,6 +97,9 @@ public class CreditCardParser extends  AbstractParser implements IStatementPrepa
 
                     newStatement.setAmount(amount);
                     description = description.substring(22);
+
+                    description = description + "-RELEVE " + cardType + " AU " + releveDate;
+
                     newStatement.setDescription(description);
                 }
                 else
