@@ -29,6 +29,7 @@ public class CreditCardParser extends  AbstractParser implements IStatementPrepa
             Statement newStatement = null;
             for (String line : lines)
             {
+                String fullLine = line;
                 if ( line.length() <= 2 ) {
                     //
                 }
@@ -67,13 +68,30 @@ public class CreditCardParser extends  AbstractParser implements IStatementPrepa
                     newStatement.setStatementDate(localDate);
 
                     String couldBeAmount = StringUtils.substringAfterLast(line.trim(),"-");
+                    double amount = 0;
+                    String description = "";
+
                     couldBeAmount = couldBeAmount.replace(",",".");
-                    double amount = Double.parseDouble(couldBeAmount) * -1;
+                    if ( StringUtils.isEmpty(couldBeAmount) ) {
+
+                        // could be positive amount - refund ?
+                        couldBeAmount = StringUtils.substringAfterLast(line.trim(),"+");
+                        couldBeAmount = couldBeAmount.replace(",",".");
+
+                        if ( StringUtils.isEmpty(couldBeAmount) ) {
+                            LOG.error("No amount [{}] on line [{}]", couldBeAmount, fullLine);
+                        }else {
+                            amount = Double.parseDouble(couldBeAmount);
+                            description = StringUtils.substringBeforeLast(line.trim(),"+").trim();
+                        }
+                    }else {
+                        // negative amount
+                        amount = Double.parseDouble(couldBeAmount) * -1;
+                        description = StringUtils.substringBeforeLast(line.trim(),"-").trim();
+                    }
+
                     newStatement.setAmount(amount);
-
-                    String description = StringUtils.substringBeforeLast(line.trim(),"-").trim();
                     description = description.substring(22);
-
                     newStatement.setDescription(description);
                 }
                 else

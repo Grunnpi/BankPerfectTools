@@ -166,14 +166,14 @@ public class Bankperfect
         {
             if (loadConfig(args[0]))
             {
-                String[] responses = { "1. Full", "2. Step by step", "3. Parse & dump recurrent", "4. Parse & dump Immo", "9. Give up" };
+                String[] responses = { "1. Full", "2. Step by step", "3. Parse & dump recurrent", "4. Parse & dump Immo","5. Parse & dump CB", "9. Give up" };
                 String processChoice = readConsoleMultipleChoice("Processing ?", responses);
 
-                if (processChoice.matches("1|3|4") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
+                if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
                         "Y/N", "Y")))
                 {
 
-                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("New CSV ?", "Y/N",
+                    if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole("New CSV ?", "Y/N",
                             "Y")))
                     {
                         FileUtils.deleteQuietly(new File(getCsvCacheFilename()));
@@ -197,7 +197,7 @@ public class Bankperfect
 
                     // prepare statements
                     // * for Credit Card
-                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("Credit Card ?", "Y/N",
+                    if (processChoice.matches("1|5") || (processChoice.matches("2") && readConsole("Credit Card ?", "Y/N",
                             "Y")))
                     {
                         CreditCardParser creditCardParser = new CreditCardParser();
@@ -240,7 +240,7 @@ public class Bankperfect
                 }
 
                 // read CSV and prepare .ofx file
-                if (processChoice.matches("1|3") || (processChoice.matches("2") && readConsole(
+                if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole(
                         "Read CSV and dump OFX ?", "Y/N", "Y")))
                 {
                     csvCacheToOfx();
