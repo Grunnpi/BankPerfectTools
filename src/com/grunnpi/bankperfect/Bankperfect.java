@@ -19,9 +19,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class Bankperfect
@@ -310,13 +317,27 @@ public class Bankperfect
         List<Statement> statements = new ArrayList<Statement>();
 
         Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
-        Map<String, List<Statement>> statementPerAccount = null;
+        Map<String, List<Statement>> statementPerAccount = new HashMap<String,List<Statement>>();
         for (File file : files)
         {
-            statementPerAccount = readCsv(file.getAbsolutePath());
-            if (statementPerAccount != null)
+            Map<String, List<Statement>> statementForThisAccount = readCsv(file.getAbsolutePath());
+            if (statementForThisAccount != null)
             {
-                LOG.info("process.r[{}].nbAccount[{}]", file.getName(), statementPerAccount.size());
+                LOG.info("process.r[{}].nbAccount[{}]", file.getName(), statementForThisAccount.size());
+                for (Map.Entry<String,List<Statement>> e : statementForThisAccount.entrySet()) {
+                    List<Statement> statements1 = null;
+                    if (!statementPerAccount.containsKey(e.getKey()))
+                    {
+                        statements1 = new ArrayList<Statement>();
+                        statementPerAccount.put(e.getKey(),statements1);
+                    }
+                    else
+                    {
+                        statements1 = statementPerAccount.get(e.getKey());
+                    }
+                    statements1.addAll(e.getValue());
+                    statementPerAccount.put(e.getKey(),statements1);
+                }
             }
             else
             {
@@ -331,6 +352,7 @@ public class Bankperfect
             {
                 for (Statement statement : mapStatements.getValue())
                 {
+                    LOG.info("Statement[{}]",statement.getDescription());
                     if (!StringUtils.isEmpty(statement.getStatementDateVariable()))
                     {
                         if (!mapVariableDate.containsKey(statement.getStatementDateVariable()))
@@ -414,11 +436,44 @@ public class Bankperfect
         return s;
     }
 
+    private String renameConverted(final String filename){
+        return filename.replace(".convertme.",".converted.") + ".tmp";
+    }
+
+    private String fileConvert(final String filename, final String fromCharset, final String toCharset) throws IOException
+    {
+        String tempFilename = renameConverted(filename);
+        try {
+            FileInputStream fis = new FileInputStream(filename);
+            byte[] contents = new byte[fis.available()];
+            fis.read(contents, 0, contents.length);
+            String asString = new String(contents, fromCharset);
+            byte[] newBytes = asString.getBytes(toCharset);
+
+            FileOutputStream fos = new FileOutputStream(tempFilename);
+            fos.write(newBytes);
+            fos.close();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        LOG.info("Converted[{}] from [{}] to [{}]",filename,fromCharset,toCharset);
+        return tempFilename;
+    }
+
+
+
     private Map<String, List<Statement>> readCsv(final String filename) throws IOException
     {
-        Reader in = new InputStreamReader(new FileInputStream(filename), "UTF-8");
+        String tempFilename = filename;
+        if ( filename.contains(".convertme.")){
+            // convert file
+            tempFilename  = fileConvert(filename,"windows-1252","UTF8");
+        }
+
+        Reader in = new InputStreamReader(new FileInputStream(tempFilename), Charset.forName("UTF8"));
         //Reader in = new FileReader(getCsvCacheFilename());
-        Iterable<CSVRecord> records = CSVFormat.DEFAULT.withHeader(CSV_HEADERS).withFirstRecordAsHeader().parse(in);
+        Iterable<CSVRecord> records = CSVFormat.DEFAULT.withHeader(CSV_HEADERS).withFirstRecordAsHeader().withIgnoreEmptyLines().parse(in);
+
 
         Map<String, List<Statement>> statementPerAccount = new HashMap<String, List<Statement>>();
         for (CSVRecord record : records)
@@ -439,7 +494,8 @@ public class Bankperfect
             }
             else
             {
-                LocalDate statementDate = LocalDate.parse(statementDateString);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                LocalDate statementDate = LocalDate.parse(statementDateString,formatter);
                 statement.setStatementDate(statementDate);
             }
 
@@ -454,6 +510,15 @@ public class Bankperfect
             }
             statementPerAccount.get(statement.getBPKey()).add(statement);
         }
+
+        // here we can close stream
+        in.close();
+
+        if ( filename.contains(".convertme."))
+        {
+            LOG.info("Delete temp file [{}] delete-{}",tempFilename,FileUtils.deleteQuietly(new File(tempFilename)));
+        }
+
         return statementPerAccount;
     }
 
