@@ -12,15 +12,17 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class SalaryParser implements IStatementPreparator
+public class SalaryParser extends AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(SalaryParser.class);
 
     private static final String REPORT_DEJA_EFFECTUES = "Reports déjà effectués";
     private static final String DECOMPTE_REMUNERATION_START = "Décompte de rémunération de ";
     private static final String PRESTATION_DESIGNATION_START = "Prestation D";
-    private final String path = "D:/Documents/[Mes Documents]/Gestion/Salaires Pierre/";
-    private List<RBCLineBean> listRBC;
+    private static final String TOTAL_NET_A_VIRER = "Total net à virer";
+    private static final String CALCULE_EN = "Calculé en ";
+
+    private static boolean addAllPayroll = true;
 
     public List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature)
     {
@@ -28,6 +30,8 @@ public class SalaryParser implements IStatementPreparator
         int nbLine = 0;
 
         String addComment = "";
+        String theCalculationDate = "";
+        String totalPayrollExpected = "0";
 
         List<List<Statement>> allPayroll = new ArrayList<List<Statement>>();
         List<Statement> currentPayroll = null;
@@ -36,6 +40,8 @@ public class SalaryParser implements IStatementPreparator
         for (String line : lines)
         {
             nbLine++;
+            String fullLine = line;
+            LOG.debug("#{} [{}]",nbLine,fullLine);
             if (line.startsWith(DECOMPTE_REMUNERATION_START))
             {
                 addComment = line;
@@ -48,6 +54,44 @@ public class SalaryParser implements IStatementPreparator
                 for ( Statement stmt : currentPayroll ) {
                     stmt.setStatementDate(localDate);
                 }
+            }
+            else if ( line.startsWith(CALCULE_EN)) {
+                line = line.replace(CALCULE_EN,"");
+                line = StringUtils.substringBefore(line, " ");
+                theCalculationDate = line;
+
+                // checksum total
+                double amountTotalComputed = 0.0;
+                for ( Statement stmt : currentPayroll ) {
+
+                    // last chance to put an amount
+                    if ( stmt.getAmount() == null ) {
+                        String desc = stmt.getRawLine();
+                        String couldBeAmount = StringUtils.substringAfterLast(desc.trim()," ");
+                        couldBeAmount = couldBeAmount.replace(",","");
+                        double amountRaw = Double.parseDouble(couldBeAmount);
+                        LOG.warn("Last change amount[{}]",amountRaw,desc);
+                        stmt.setAmount(amountRaw);
+                    }
+
+                    // sum
+                    if ( stmt.getAmount() != null ) {
+                        //                        LOG.info("++amount[{}] for [{}]",stmt.getAmount(),stmt.getDescription());
+                        amountTotalComputed += stmt.getAmount();
+                    }
+                    else{
+                        LOG.error("Amount null for [{}]",stmt.getDescription());
+                    }
+                }
+
+                Double amountTotal = Double.parseDouble(totalPayrollExpected);
+                DecimalFormat df = new DecimalFormat("#.00");
+                if ( areEqualByThreeDecimalPlaces(amountTotal,amountTotalComputed) ) {
+                    LOG.info("Total [{}]==[{}] is OK [{}][{}]",df.format(amountTotal),df.format(amountTotalComputed),currentPayroll.get(0).getStatementDate(),theCalculationDate);
+                }
+                else {
+                    LOG.error("Total [{}]<>[{}] is NOT OK [{}][{}]",df.format(amountTotal),df.format(amountTotalComputed),currentPayroll.get(0).getStatementDate(),theCalculationDate);
+                }
 
                 // and then push it to payroll list
                 allPayroll.add(currentPayroll);
@@ -56,6 +100,10 @@ public class SalaryParser implements IStatementPreparator
             else if ( line.startsWith(PRESTATION_DESIGNATION_START)) {
                 // new payroll detected
                 currentPayroll = new ArrayList<Statement>();
+            }
+            else if ( line.startsWith(TOTAL_NET_A_VIRER)) {
+                // new payroll detected
+                totalPayrollExpected = line.replace(TOTAL_NET_A_VIRER,"").trim().replace(",","");
             }
             else
             {
@@ -122,6 +170,8 @@ public class SalaryParser implements IStatementPreparator
                     else {
                         try {
                             description = line.substring(0, lastSpace);
+                            description = description.trim();
+                            description = description.replaceAll(" +"," ");
                         }catch(Exception e) {
                             LOG.error("Substring for lastSpace [{}][{}]",line,lastSpace);
                         }
@@ -172,6 +222,17 @@ public class SalaryParser implements IStatementPreparator
                 }
 
 
+                // amount computed (hopefully)
+                montant = montant.replace(",","");
+                try {
+
+                    double amountComputed = Double.parseDouble(montant);
+//                    LOG.info("**Amount[{}]/[{}] for line [{}]/[{}]",amountComputed,montant,fullLine,description);
+                    newStatement.setAmount(amountComputed);
+                } catch (Exception e){
+                    LOG.debug("skip : no amount there [{}]",fullLine);
+                    newStatement.setValid(false);
+                }
 
                 // Mapping desc
                 for ( Map.Entry<String,String> entry : mapping.entrySet() ) {
@@ -190,310 +251,25 @@ public class SalaryParser implements IStatementPreparator
         }
 
         List<Statement> statements = new ArrayList<Statement>();
-        for ( List<Statement> payroll : allPayroll ) {
-            LOG.info("Payroll++");
+        if ( addAllPayroll ) {
+            for ( List<Statement> payroll : allPayroll ) {
+                LOG.info("Add payroll[{}] (all)",payroll.get(0).getStatementDate());
+                statements.addAll(payroll);
+            }
+        }
+        else {
+            List<Statement> payroll = allPayroll.get(allPayroll.size() - 1);
+            LOG.info("Add payroll[{}] (only last)",payroll.get(0).getStatementDate());
             statements.addAll(payroll);
         }
 
         String[] accountId = accountSignature.split(",");
         for ( Statement statement : statements) {
-            String desc = statement.getRawLine();
-            String couldBeAmount = StringUtils.substringAfterLast(desc.trim()," ");
-            couldBeAmount = couldBeAmount.replace(",","");
-            double amount = Double.parseDouble(couldBeAmount);
-            statement.setAmount(amount);
-
             statement.setBank(accountId[0]);
             statement.setBranch(accountId[1]);
             statement.setAccount(accountId[2]);
         }
 
         return statements;
-    }
-
-    public void readFile(String filename, CharSequence USELES)
-    {
-        try (BufferedReader br = new BufferedReader(new FileReader(filename)))
-        {
-            int nbLine = 0;
-            int nbLineOk = 0;
-            int nbLineNok = 0;
-            String addComment = "";
-            String salaireAnnee = "";
-            String salaireMois = "";
-            String salaireJour = "14";
-            String salaireDate = "";
-            listRBC = new ArrayList<RBCLineBean>();
-            RBCLineBean lineBean = null;
-            for (String line; (line = br.readLine()) != null; )
-            {
-                nbLine++;
-                // System.out.println(line);
-
-                if (nbLine == 1)
-                {
-                    // 1er ligne, c'est le libellé commun
-                    addComment = line;
-
-                    String releveDate = addComment.substring(addComment.length() - 7);
-
-                    salaireAnnee = releveDate.substring(releveDate.length() - 4);
-                    salaireMois = releveDate.substring(0, 2);
-
-                    salaireDate = salaireJour + "/" + salaireMois + "/" + salaireAnnee;
-                    System.out.println("Date=" + salaireDate);
-                }
-                else if (nbLine == 2)
-                {
-                    // 2eme ligne, en tête colonne
-                }
-                else
-                {
-
-                    // ligne salaire bloc1
-                    if (lineBean != null)
-                    {
-                        listRBC.add(lineBean);
-                    }
-                    lineBean = new RBCLineBean();
-                    lineBean.setDateOperation(salaireDate);
-
-                    boolean montantSiNegatifAMettrePositif = false;
-                    if (line.contains(REPORT_DEJA_EFFECTUES))
-                    {
-                        line = line.replace("( ", "").replace(" )", "");
-                        montantSiNegatifAMettrePositif = true;
-                    }
-
-                    // virer les "(-)" en fin de ligne pour A reporter
-                    if (line.contains(" (-)"))
-                    {
-                        System.out.println("oooh ?");
-                        line = line.replace(" (-)", "");
-                        montantSiNegatifAMettrePositif = true;
-                    }
-
-                    String description = line;
-                    String montant = "0";
-                    int firstSpace = line.indexOf(" ");
-                    int lastSpace = line.lastIndexOf(" ");
-                    if (lastSpace > 0)
-                    {
-                        montant = line.substring(lastSpace).trim();
-                    }
-
-                    if (StringUtils.isNumeric("" + line.charAt(0)))
-                    {
-                        // System.out.println("bloc1 [" + line + "]");
-                        if ((firstSpace > 0) && (lastSpace > 0))
-                        {
-                            // System.out.println("firstSpace:" + firstSpace + ",lastSpace:" + lastSpace);
-                            if (firstSpace != lastSpace)
-                            {
-                                description = line.substring(firstSpace + 1, lastSpace - 1);
-                            }
-                            else
-                            {
-                                description = line.substring(0, firstSpace);
-                            }
-
-                            int otherLast = description.lastIndexOf(" ");
-                            if (otherLast > 0)
-                            {
-                                description = description.substring(0, otherLast);
-                            }
-                            otherLast = description.lastIndexOf(" ");
-                            if (otherLast > 0)
-                            {
-                                description = description.substring(0, otherLast);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // System.out.println("blocN [" + line + "]");
-                        description = line.substring(0, lastSpace);
-
-                        String[] array = { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie Espèces 0.25 %",
-                                "Caisse de Pension 8.00 %", "Caisse de Pension NP 8.00 %",
-                                "Assurance dépendance 1.40 %", "Assurance dépendance NP 1.40 %",
-                                "Impôt d'équi budg temp 0.50 %", "Impôt d'équi budg temp NP 0.50 %" };
-
-                        boolean specialDebit = false;
-                        for (String check : array)
-                        {
-                            if (description.contains(check))
-                            {
-                                specialDebit = true;
-                                break;
-                            }
-                        }
-
-                        if (specialDebit)
-                        {
-                            int otherLast = description.lastIndexOf(" ");
-                            if (otherLast > 0)
-                            {
-                                description = description.substring(0, otherLast);
-                            }
-                            montant = "-" + montant;
-                        }
-                        else
-                        {
-                            if (description.equals("Impôt") || description.equals("Impôt NP"))
-                            {
-                                montant = "-" + montant;
-                            }
-                            else if (description.equals("CIS - CIM - CIP"))
-                            {
-                                if (montant.charAt(0) == '-')
-                                {
-                                    montant = montant.substring(1);
-                                }
-                                else
-                                {
-                                    montant = "-" + montant;
-                                    // System.out.println("line " + line + " / montant=[" + montant + "]");
-                                    // nbLineNok++;
-                                }
-                            }
-                        }
-
-                    }
-
-                    // System.out.println(">desc:[" + description + "]");
-                    // if (montant.charAt(0) == '-')
-                    // {
-                    // System.err.println(">montant:[" + montant + "]");
-                    // }
-                    // else
-                    // {
-                    // System.out.println(">montant:[" + montant + "]");
-                    // }
-                    montant = '"' + montant.replace(",", "") + '"';
-
-                    String[] arrayForInformation = { "Imposable", "Imposable NP", "Net", "Total net à virer",
-                            "Brut total", "Cotisations totales", "Abattement", "Heures supplémentaires",
-                            "Suppléments DNF", "Frais de déplacement (FD)", "Autres exemptions", "Total net",
-                            "Avantage prêt immobilier", "Exemption prêt immobilier" };
-
-                    boolean forInformation = false;
-                    for (String check : arrayForInformation)
-                    {
-                        if (description.equals(check))
-                        {
-                            forInformation = true;
-                            break;
-                        }
-                    }
-
-                    lineBean.setForInformation(forInformation);
-                    lineBean.setDescription("RBC/" + description);
-
-                    if (montantSiNegatifAMettrePositif)
-                    {
-                        if (montant.contains("-"))
-                        {
-                            montant = montant.replace("-", "");
-                        }
-                        else
-                        {
-                            montant = montant.replaceFirst("\"", "\"-");
-                        }
-                    }
-                    lineBean.setMontant(montant);
-                }
-
-            }
-            if (lineBean != null)
-            {
-                listRBC.add(lineBean);
-            }
-
-            System.out.println("Nb Ligne RBC = " + listRBC.size());
-            for (RBCLineBean cbBean : listRBC)
-            {
-                String description = cbBean.getDescription();
-                if (cbBean.isForInformation())
-                {
-
-                }
-                else
-                {
-                    System.out.println(cbBean);
-                }
-                // nbLineNok++;
-            }
-
-            if (nbLineNok == 0)
-            {
-
-                File fout = new File(path + "Salaires-" + salaireAnnee + "/" + salaireAnnee + "-" + salaireMois
-                        + "-Fiche-de-salaire-RBC.csv");
-
-                System.out.println(fout.getAbsolutePath());
-                FileOutputStream fos = new FileOutputStream(fout);
-
-                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos, "Cp1252"));
-
-                // Float total = Float.valueOf(0);
-                double total = 0.0;
-
-                bw.write("Mode;Date;Details;Montant");
-                bw.newLine();
-
-                for (RBCLineBean cbBean : listRBC)
-                {
-
-                    if (!cbBean.isForInformation())
-                    {
-                        String stringMontant = cbBean.getMontant().replace("\"", "");
-
-                        // Float montant = Float.parseFloat(stringMontant);
-                        // DecimalFormat df = new DecimalFormat("0.00");
-                        // df.setMaximumFractionDigits(2);
-
-                        double montant = Double.parseDouble(stringMontant);
-                        total += montant;
-
-                        cbBean.setMontant(cbBean.getMontant().replace(".", ","));
-                        bw.write(cbBean.toString());
-                        bw.newLine();
-                    }
-                }
-                bw.close();
-                System.out.println("Total = " + new DecimalFormat("#.##").format(total));
-            }
-            else
-            {
-                System.err.println("NbErr = " + nbLineNok);
-            }
-        }
-        catch (FileNotFoundException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        catch (IOException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * @return the listRBC
-     */
-    public List<RBCLineBean> getListRBC()
-    {
-        return listRBC;
-    }
-
-    /**
-     * @param listRBC the listRBC to set
-     */
-    public void setListRBC(List<RBCLineBean> listRBC)
-    {
-        this.listRBC = listRBC;
     }
 }

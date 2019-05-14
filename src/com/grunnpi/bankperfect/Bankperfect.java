@@ -45,6 +45,7 @@ public class Bankperfect
     private static final String CSV_C_BRANCH = "branch";
     private static final String CSV_C_ACCOUNT = "account";
     private static final String CSV_C_DATE = "date";
+    private static final String CSV_C_TIER = "tier";
     private static final String CSV_C_DESCRIPTION = "description";
     private static final String CSV_C_AMOUNT = "amount";
     private static final String INPUT_DIRECTORY_ROOT = "input_directory_root";
@@ -65,7 +66,7 @@ public class Bankperfect
     private static final String RECURRENT_DIR = "Recurrent_dir";
     // Config file
     Configuration properties;
-    private String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_DESCRIPTION,
+    private String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_TIER, CSV_C_DESCRIPTION,
             CSV_C_AMOUNT };
 
     public static void main(String[] args) throws ParseException, IOException, TemplateException
@@ -85,7 +86,7 @@ public class Bankperfect
             }
             else
             {
-                LOG.info("No exclude found [{}]", file.getName());
+                LOG.debug("No exclude found [{}]", file.getName());
                 excludeLines = new ArrayList<String>();
             }
         }
@@ -121,11 +122,11 @@ public class Bankperfect
                         //                        LOG.info("[{}]=[{}]",key,value);
                     }
                 }
-                LOG.info("Map[{}].size={}", file.getAbsolutePath(), myMap.size());
+                LOG.debug("Map[{}].size={}", file.getAbsolutePath(), myMap.size());
             }
             else
             {
-                LOG.info("No map found [{}]", file.getName());
+                LOG.debug("No map found [{}]", file.getName());
             }
         }
         catch (IOException e)
@@ -173,14 +174,22 @@ public class Bankperfect
         {
             if (loadConfig(args[0]))
             {
-                String[] responses = { "1. Full", "2. Step by step", "3. Parse & dump recurrent", "4. Parse & dump Immo","5. Parse & dump CB", "9. Give up" };
+                String[] responses = {
+                            "1. Full"
+                        ,   "2. Step by step"
+                        ,   "3. Parse & dump recurrent"
+                        ,   "4. Parse & dump Immo"
+                        ,   "5. Parse & dump CB"
+                        ,   "6. Parse & dump Salary"
+                        ,   "9. Give up"
+                };
                 String processChoice = readConsoleMultipleChoice("Processing ?", responses);
 
-                if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
+                if (processChoice.matches("1|3|4|5|6") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
                         "Y/N", "Y")))
                 {
 
-                    if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole("New CSV ?", "Y/N",
+                    if (processChoice.matches("1|3|4|5|6") || (processChoice.matches("2") && readConsole("New CSV ?", "Y/N",
                             "Y")))
                     {
                         FileUtils.deleteQuietly(new File(getCsvCacheFilename()));
@@ -189,7 +198,7 @@ public class Bankperfect
                     List<Statement> allStatements = new ArrayList<Statement>();
                     // prepare statements
                     // * for salary
-                    if (processChoice.matches("1") || (processChoice.matches("2") && readConsole("Salaray ?", "Y/N",
+                    if (processChoice.matches("1|6") || (processChoice.matches("2") && readConsole("Salaray ?", "Y/N",
                             "Y")))
                     {
                         SalaryParser salaryParser = new SalaryParser();
@@ -247,7 +256,7 @@ public class Bankperfect
                 }
 
                 // read CSV and prepare .ofx file
-                if (processChoice.matches("1|3|4|5") || (processChoice.matches("2") && readConsole(
+                if (processChoice.matches("1|3|4|5|6") || (processChoice.matches("2") && readConsole(
                         "Read CSV and dump OFX ?", "Y/N", "Y")))
                 {
                     csvCacheToOfx();
@@ -280,7 +289,7 @@ public class Bankperfect
         case rbc:
             SalaryParser salaryParser = new SalaryParser();
             String filenameRBC = "resource/RBC-Salaire.txt";
-            salaryParser.readFile(filenameRBC, ".");
+            //salaryParser.readFile(filenameRBC, ".");
             break;
         case doenst:
             DoenstImport doenstImport = new DoenstImport();
@@ -305,7 +314,11 @@ public class Bankperfect
 
             statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
             if ( statements != null && statements.size() > 0 ) {
+                LOG.info("[{}] statements for [{}]",statements.size(),file.getName());
                 allStatements.addAll(statements);
+            }
+            else {
+                LOG.warn("No statement for [{}]",file.getName());
             }
         }
         return allStatements;
@@ -410,7 +423,7 @@ public class Bankperfect
         for (Statement statement : statements)
         {
             printer.printRecord("xxx", statement.getBank(), statement.getBranch(), statement.getAccount(),
-                    statement.getStatementDate(), statement.getDescription(), statement.getAmount());
+                    statement.getStatementDate(), statement.getTier(), statement.getDescription(), statement.getAmount());
         }
         printer.close();
         LOG.info("CSV dumped {} lines", statements.size());
@@ -484,6 +497,7 @@ public class Bankperfect
             statement.setBranch(record.get(CSV_C_BRANCH));
             statement.setAccount(record.get(CSV_C_ACCOUNT));
 
+            statement.setTier(record.get(CSV_C_TIER));
             statement.setDescription(record.get(CSV_C_DESCRIPTION));
 
             String statementDateString = record.get(CSV_C_DATE);

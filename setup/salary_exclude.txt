@@ -2,13 +2,13 @@ Salaire du mois
 14, Porte de France
 M. Pierre GRUNNAGEL
 9, impasse du fort
-Données personnelles
+Donnï¿½es personnelles
 Matricule SAP :
-N° sécurité sociale :
+Nï¿½ sï¿½curitï¿½ sociale :
 Taux d'occupation :
 Classification :
 Banque :
-N° de compte :
+Nï¿½ de compte :
 Cumul annuel Total Informations
 FD :
 AC :
@@ -17,14 +17,13 @@ CE :
 FO :
 Indice :
 J.imposables
-N° carte :
+Nï¿½ carte :
 Classe :
 Taux :
-N° carte
+Nï¿½ carte
 Imposable
 Imposable NP
 Net
-Total net 
 Brut total
 Cotisations totales
 Abattement
@@ -34,3 +33,7 @@ Frais de d
 Autres exemptions
 Avantage pr
 Exemption pr
+F-57970
+DonnÃ©es personnelles
+NÂ° sÃ©curitÃ© sociale :
+NÂ° de compte :

@@ -7,7 +7,24 @@
 			<param name="ConversionPattern" value="%d [%t] [%-5p] (%F:%L) - %m%n" />
 		</layout>
 	</appender>
-	
+
+	<logger name="org.apache.fontbox.ttf" additivity="false">
+		<level value="WARN" />
+		<appender-ref ref="stdoutStandard" />
+	</logger>
+	<logger name="org.apache.commons.beanutils.converters" additivity="false">
+		<level value="WARN" />
+		<appender-ref ref="stdoutStandard" />
+	</logger>
+	<logger name="org.apache.pdfbox.pdmodel.font" additivity="false">
+		<level value="WARN" />
+		<appender-ref ref="stdoutStandard" />
+	</logger>
+	<logger name="org.apache.fontbox.util.autodetect" additivity="false">
+		<level value="WARN" />
+		<appender-ref ref="stdoutStandard" />
+	</logger>
+
 	<root>
 		<level value="INFO" />
 		<appender-ref ref="stdoutStandard" />

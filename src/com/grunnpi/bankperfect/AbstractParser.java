@@ -42,11 +42,11 @@ public class AbstractParser
 
     protected static boolean areEqualByThreeDecimalPlaces(double a, double b)
     {
-        DecimalFormat df = new DecimalFormat("#.###");
+        DecimalFormat df = new DecimalFormat("####.0##;-####.0##");
         df.setRoundingMode(RoundingMode.CEILING);
         String as  = df.format(a);
-        String bs  = df.format(a);
+        String bs  = df.format(b);
+//        LOG.info("[{}].equals[{}]={} <while input value are {} and {}>",as,bs,as.equals(bs),a,b);
         return as.equals(bs);
-
     }
 }

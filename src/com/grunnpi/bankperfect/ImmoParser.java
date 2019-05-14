@@ -38,7 +38,6 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
             String theDateTransactionLast = "";
             String theDateTransactionLastFormatted = "";
             String theMontant = "";
-            String theType = "";
 
             String theDecompte = "";
             String theDateTraitement = "";
@@ -49,14 +48,13 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
             boolean isStuffBail = false;
 
             String theOwner = "";
-            String thePath = "";
-
             boolean immoOwnerFound = false;
             for (String line : lines )
             {
                 nbLine++;
                 isRealLine = false;
-                LOG.info("#{} [{}]",nbLine,line);
+                String fullLine = line;
+                LOG.debug("#{} [{}]",nbLine,line);
 
                 if ( !immoOwnerFound )
                 {
@@ -100,14 +98,14 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                     }
                 }
                 else if ( StringUtils.isEmpty(line.trim())) {
-
+                    // empty line
                 }
-                else if (line.contains("Sous-totaux "))
+                else if (line.contains("Sous-totaux"))
                 {
                     isEcritureLot = false;
                     isStuffBail = false;
                 }
-                else if (line.startsWith("Bail "))
+                else if (line.startsWith("Bail"))
                 {
                     theBail = line.replace("Bail ", "");
                     isStuffBail = true;
@@ -151,6 +149,7 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 }
                 else if (line.startsWith("Lot 6, rue Bellevue, Maison Type 7 et +"))
                 {
+                    theBail = "Gestion Maison";
                     theTypeLot = "Maison";
                     theSignePositive = true;
                     isStuffBail = false;
@@ -168,15 +167,25 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 }
                 else if (line.contains("Solde en votre faveur au "))
                 {
-                    theSolde = line.replace("Solde en votre faveur au", "@");
-                    theSolde = StringUtils.substringBefore(theSolde, "@");
-//                    LOG.info("TheSolde={}",theSolde);
+                    theSolde = line.replace("Solde en votre faveur au ", "@");
+                    theSolde = StringUtils.substringAfter(theSolde, " ");
                     isStuffBail = false;
                 }
-                else if (line.startsWith("Loyer ") || line.startsWith("Provision charges courantes ")
-                        || line.startsWith("Garantie loyers impayés (GLI)") || line.startsWith("Honoraires de gestion ")
-                        || line.startsWith("Assurance loyers impayés") || isStuffBail)
+                else if (line.contains("Solde nul au "))
                 {
+                    theSolde = line.replace("Solde nul au ", "@");
+                    theSolde = StringUtils.substringAfter(theSolde, " ");
+                    isStuffBail = false;
+                }
+                else if ( line.startsWith("Loyer ")
+                        || line.startsWith("Provision charges courantes ")
+                        || line.startsWith("Garantie loyers impayés (GLI)")
+                        || line.startsWith("Honoraires de gestion ")
+                        || line.startsWith("Assurance loyers impayés")
+                        || line.startsWith("Garantie des loyers")
+                        || isStuffBail)
+                {
+                    boolean oneTimeNegativeSign = false;
                     if (line.startsWith("Provision charges courantes "))
                     {
                         theOperation = "Charge";
@@ -193,23 +202,29 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
 
                         line = line.replace("Garantie loyers impayés (GLI) ", "");
                         line = StringUtils.substringAfter(line, ") ");
-                        LOG.info("XXX [{}] - [{}]",theDateTransactionLast,line);
-                        line = theDateTransactionLast + " " + line + "5,84";
+//                        LOG.info("XXX [{}] - [{}]",theDateTransactionLast,line);
+                        line = theDateTransactionLast + " 5,84 " + line;
                     }
                     else if (line.startsWith("Assurance loyers impayés"))
                     {
                         theOperation = "Assurance";
                         line = line.replace("Assurance loyers impayés ", theDateTransactionLast + " 5,84 ");
                     }
+                    else if (line.startsWith("Garantie des loyers"))
+                    {
+                        theOperation = "Assurance";
+                        line = line.replace("Garantie des loyers ", theDateTransactionLast + " 5,84 ");
+                        oneTimeNegativeSign = true;
+                    }
                     else if (line.startsWith("Honoraires de gestion 5,84% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " " + StringUtils.substringAfterLast(line, ") ") + "5,84";
+                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
                     }
                     else if (line.startsWith("Honoraires de gestion 7,00% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " " + StringUtils.substringAfterLast(line, ") ") + "5,84";
+                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
                     }
                     else
                     {
@@ -217,25 +232,19 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                         line = line.replace("Loyer ", "");
                     }
 
-                    if (line.endsWith("5,84"))
+
+                    // Split on % commission/tva applied
+                    if (line.contains(" 5,84"))
                     {
-                        line = line.replace("5,84","");
+                        line = line.replace(" 5,84","@");
                     }
-                    else if (line.endsWith("7,00"))
+                    else if (line.contains(" 7,00"))
                     {
-                        line = line.replace("7,00","");
-                    }
-                    else if (line.contains(" 5,84"))
-                    {
-                        line = line.replace(" 5,84 ","");
-                    }
-                    else if (line.contains(" 7,00 "))
-                    {
-                        line = line.replace(" 7,00 ","");
+                        line = line.replace(" 7,00","@");
                     }
                     else
                     {
-                        LOG.error("line [{}] without 5,84 or 7,00 at the end",line);
+                        LOG.error("line [{}] without <5,84 or 7,00> as separator.",line);
                     }
 
                     theDateTransaction = line;
@@ -246,8 +255,10 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
 
 
                     //String[] dateSplit = theDateTransaction.split(" ");
-                    String dateSplited = StringUtils.substringBeforeLast(theDateTransaction," ");
-                    String afterDateSplited = StringUtils.substringAfterLast(theDateTransaction," ");
+                    String dateSplited = StringUtils.substringBeforeLast(theDateTransaction,"@");
+                    String afterDateSplited = StringUtils.substringAfterLast(theDateTransaction,"@");
+
+//                    LOG.info("Split [{}] > [{}]//[{}]",theDateTransaction,dateSplited,afterDateSplited);
 
                     theDateTransactionLast = dateSplited;
                     if ( StringUtils.isEmpty(dateSplited)) {
@@ -292,10 +303,10 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                     theDescription = theDescription.replace(" MLLE MICHELE NGATOU", "");
                     theDescription = theDescription.replace(" MME JEANNINE FRIGOL", "");
 
-                    theMontant = theSignePositive ? afterDateSplited : "-" + afterDateSplited;
-                    theType = theSignePositive ? "Versement" : "Versement";
+                    theMontant = (theSignePositive || oneTimeNegativeSign) ? afterDateSplited : "-" + afterDateSplited;
 
                     isRealLine = true;
+                    LOG.info("realLine.loyerOuAutre [{}]",fullLine);
                 }
                 else if (isEcritureLot)
                 {
@@ -305,8 +316,8 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                     theMontant = StringUtils.substringAfterLast(line, " ");
                     theMontant = theSignePositive ? theMontant : "-" + theMontant;
 
-                    theType = "Versement";
                     isRealLine = true;
+                    LOG.info("realLine.ecritureLot [{}]",fullLine);
 
                     if (theDescription.contains("CONTRAT ENTRETIEN"))
                     {
@@ -326,13 +337,16 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                             + upperCaseFirst(theDescription.toLowerCase()) + "/" + theTypeLot + "/" + theOperation;
 
                     Statement statement = new Statement();
+
+                    statement.setTier(theBail);
                     statement.setDescription(description);
                     Double amount = null;
                     try {
                         amount = Double.parseDouble(theMontant.replace(",",".").replace(" ",""));
+//                        LOG.info("Amount s[{}] > d[{}]",theMontant,amount);
                     }
                     catch (Exception e) {
-                        LOG.error("Amout cast[{}] error",theMontant,e);
+                        LOG.error("Amout cast[{}] error for line [{}]",theMontant,fullLine,e);
                     }
                     statement.setAmount(amount);
 
@@ -345,12 +359,18 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 }
             }
 
-//            LOG.info("Nb Ligne={}",listStatement.size());
             double amountTotalComputed = 0.0;
             for (Statement statement : listStatement)
             {
                 // sum
-                amountTotalComputed += statement.getAmount();
+                if ( statement.getAmount() != null ) {
+//                    LOG.info("++amount[{}] for [{}]",statement.getAmount(),statement.getDescription());
+                    amountTotalComputed += statement.getAmount();
+                }
+                else{
+                    LOG.error("Amount null for [{}]",statement.getDescription());
+                }
+
 
                 // add account
                 statement.setAccountID(getAccount(accountSignature,theBien));
@@ -358,9 +378,10 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
 
             theSolde = theSolde.replace(" ","").replace(",",".");
             if ( StringUtils.isEmpty(theSolde)) {
-                LOG.error("No solde found !");
+                LOG.error("No solde found ! Computed[{}]",amountTotalComputed);
             }
             else {
+                theSolde = theSolde.replace(" ","").replace(",",".");
                 Double amountTotal = Double.parseDouble(theSolde);
                 DecimalFormat df = new DecimalFormat("#.00");
                 if ( areEqualByThreeDecimalPlaces(amountTotal,amountTotalComputed) ) {
