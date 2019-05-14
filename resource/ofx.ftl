@@ -44,7 +44,7 @@ NEWFILEUID:NONE
 					<#assign statementDate = oneStatements.getStatementDate()>
 					<DTPOSTED>${statementDate?replace("-", "")}
 					<DTUSER>${statementDate?replace("-", "")}
-					<TRNAMT>${oneStatements.getAmount()}
+					<TRNAMT>${oneStatements.getAmount()?string("##0.00")}
 					<FITID>L9JVJ28%CF
 					<NAME>${oneStatements.getTier()!""}
 					<MEMO>${oneStatements.getDescription()}
