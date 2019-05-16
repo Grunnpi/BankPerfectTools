@@ -59,7 +59,7 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 if ( !immoOwnerFound )
                 {
                     // 1er ligne, num décompte + date
-                    if (line.contains("SCI JEMASARAEL") && line.contains("Relevé") )
+                    if (line.contains("SCI JEMASARAEL") && (line.contains("Relevé") || line.contains("Principal") ) )
                     {
 //                        line = line.replace("Madame SCI JEMASARAEL", "");
 //                        line = line.replace("(126 / Relevé 0) Décompte n°", "");
@@ -114,11 +114,13 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 {
                     theBien = "Beethoven";
                     isStuffBail = false;
+                    LOG.info("Bien[{}]",theBien);
                 }
                 else if (line.startsWith("Maison 6, rue Bellevue"))
                 {
                     theBien = "Bellevue";
                     isStuffBail = false;
+                    LOG.info("Bien[{}]",theBien);
                 }
                 else if (line.startsWith("Ecritures de l'immeuble"))
                 {
@@ -169,12 +171,14 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                 {
                     theSolde = line.replace("Solde en votre faveur au ", "@");
                     theSolde = StringUtils.substringAfter(theSolde, " ");
+                    LOG.info("Solde[{}] fetch from line [{}]",theSolde,fullLine);
                     isStuffBail = false;
                 }
                 else if (line.contains("Solde nul au "))
                 {
                     theSolde = line.replace("Solde nul au ", "@");
                     theSolde = StringUtils.substringAfter(theSolde, " ");
+                    LOG.info("Solde[{}] fetch from line [{}]",theSolde,fullLine);
                     isStuffBail = false;
                 }
                 else if ( line.startsWith("Loyer ")
@@ -219,12 +223,12 @@ public class ImmoParser extends  AbstractParser implements IStatementPreparator
                     else if (line.startsWith("Honoraires de gestion 5,84% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
+                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
                     }
                     else if (line.startsWith("Honoraires de gestion 7,00% "))
                     {
                         theOperation = "Frais";
-                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, ") ");
+                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
                     }
                     else
                     {

@@ -24,9 +24,15 @@
 		<level value="WARN" />
 		<appender-ref ref="stdoutStandard" />
 	</logger>
+	<logger name="org.apache.pdfbox.io" additivity="false">
+		<level value="WARN" />
+		<appender-ref ref="stdoutStandard" />
+	</logger>
+
+
 
 	<root>
-		<level value="INFO" />
+		<level value="DEBUG" />
 		<appender-ref ref="stdoutStandard" />
 	</root>
 
