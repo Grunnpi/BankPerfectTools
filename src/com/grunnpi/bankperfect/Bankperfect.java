@@ -10,13 +10,16 @@ import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.xml.DOMConfigurator;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessFile;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -30,6 +33,10 @@ import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+
+import static org.slf4j.LoggerFactory.*;
 
 public class Bankperfect
 {
@@ -38,7 +45,7 @@ public class Bankperfect
     /** The resulting text file. */
     public static final String RESULT = "P://tmppierre//preface.txt";
 
-    private static final Logger LOG = LoggerFactory.getLogger(Bankperfect.class);
+    private static final Logger LOG = getLogger(Bankperfect.class);
 
     private static final String CSV_C_FILE = "file";
     private static final String CSV_C_BANK = "bank";
@@ -64,6 +71,25 @@ public class Bankperfect
     private static final String IMMO_EXCLUDE = "Immo_exclude";
     private static final String IMMO_MAPPING = "Immo_mapping";
     private static final String RECURRENT_DIR = "Recurrent_dir";
+    private static final String KEY_SALARY = "SALARY";
+    private static final String KEY_CREDITCARD = "CREDITCARD";
+    private static final String KEY_IMMO = "IMMO";
+
+    public Map<String,IStatementPreparator> getStatementPreparators()
+    {
+        if ( statementPreparators == null ) {
+            statementPreparators = new HashMap<String,IStatementPreparator>();
+        }
+        return statementPreparators;
+    }
+
+    public void setStatementPreparators(Map<String,IStatementPreparator> statementPreparators)
+    {
+        this.statementPreparators = statementPreparators;
+    }
+
+    private Map<String,IStatementPreparator> statementPreparators;
+
     // Config file
     Configuration properties;
     private String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_TIER, CSV_C_DESCRIPTION,
@@ -72,6 +98,17 @@ public class Bankperfect
     public static void main(String[] args) throws ParseException, IOException, TemplateException
     {
         Bankperfect bankperfect = new Bankperfect();
+        if ( bankperfect.readConsole("Debug ?","1/0","1") ) {
+            Resource log4jResource = new ClassPathResource("log4j.debug.xml");
+            try
+            {
+                DOMConfigurator.configure(log4jResource.getURL());
+            }
+            catch (Exception e)
+            {
+                LOG.error("Something wrong append with log4j configuration, please check", e);
+            }
+        }
         bankperfect.runMe(args);
     }
 
@@ -167,6 +204,13 @@ public class Bankperfect
         return properties.getString(OUTPUT_DIRECTORY_ROOT) + "/output.ofx";
     }
 
+    private void addParser(final String parserName, IStatementPreparator parser, final String accountSignature, final String directoryToFetch, final File exclude,
+            final File mapping, final String fileExtention,final boolean layoutStripper){
+        parser.setContext(accountSignature,directoryToFetch,exclude,mapping,fileExtention,layoutStripper);
+
+        getStatementPreparators().put(parserName, parser);
+    }
+
     private void runMe(String[] args) throws ParseException, IOException, TemplateException
     {
         // process only if ok
@@ -174,15 +218,49 @@ public class Bankperfect
         {
             if (loadConfig(args[0]))
             {
-                String[] responses = {
-                            "1. Full"
-                        ,   "2. Step by step"
-                        ,   "3. Parse & dump recurrent"
-                        ,   "4. Parse & dump Immo"
-                        ,   "5. Parse & dump CB"
-                        ,   "6. Parse & dump Salary"
-                        ,   "9. Give up"
-                };
+                // check all file type available or not
+                addParser(KEY_SALARY, new SalaryParser(),getAccount(SALARY_ACCOUNT_ID),
+                        getDir(SALARY_DIR), getSetupFile(SALARY_EXCLUDE), getSetupFile(SALARY_MAPPING), "pdf",false);
+                addParser(KEY_CREDITCARD, new CreditCardParser(),getAccount(CB_ACCOUNT_ID), getDir(CB_DIR),
+                        getSetupFile(CB_EXCLUDE), getSetupFile(CB_MAPPING), "pdf", false);
+                addParser(KEY_IMMO, new ImmoParser(),getAccount(IMMO_ACCOUNT_ID), getDir(IMMO_DIR),
+                        getSetupFile(IMMO_EXCLUDE), getSetupFile(IMMO_MAPPING), "pdf", true);
+
+
+                // fetch out list of files per preparators
+                for ( Map.Entry<String, IStatementPreparator> preparatorEntry : getStatementPreparators().entrySet() ) {
+                    preparatorEntry.getValue().fetchFiles();
+                }
+
+                List<String> responsesList = new ArrayList<String>();
+                responsesList.add("1. Full");
+                responsesList.add("2. Step by step");
+                responsesList.add("3. Parse & dump recurrent");
+
+//                String[] responses = {
+//                            "1. Full"
+//                        ,   "2. Step by step"
+//                        ,   "3. Parse & dump recurrent"
+//                        ,   "4. Parse & dump Immo"
+//                        ,   "5. Parse & dump CB"
+//                        ,   "6. Parse & dump Salary"
+//                        ,   "9. Give up"
+//                };
+
+                if ( getParser(KEY_IMMO).hasFile() ){
+                    responsesList.add("4. Parse & dump Immo");
+                }
+                if ( getParser(KEY_CREDITCARD).hasFile() ){
+                    responsesList.add("5. Parse & dump CB");
+                }
+                if ( getParser(KEY_SALARY).hasFile() ){
+                    responsesList.add("6. Parse & dump Salary");
+                }
+                responsesList.add("9. Give up");
+
+                String[] responses = new String[responsesList.size()];
+                responses = responsesList.toArray(responses);
+
                 String processChoice = readConsoleMultipleChoice("Processing ?", responses);
 
                 if (processChoice.matches("1|3|4|5|6") || (processChoice.matches("2") && readConsole("Parse and dump CSV ?",
@@ -202,9 +280,7 @@ public class Bankperfect
                             "Y")))
                     {
                         SalaryParser salaryParser = new SalaryParser();
-                        List<Statement> salaryStatements = processFiles(getAccount(SALARY_ACCOUNT_ID),
-                                getDir(SALARY_DIR), getSetupFile(SALARY_EXCLUDE), getSetupFile(SALARY_MAPPING), "pdf",
-                                salaryParser,false);
+                        List<Statement> salaryStatements = processFiles(KEY_SALARY);
                         if (salaryStatements != null)
                         {
                             allStatements.addAll(salaryStatements);
@@ -217,8 +293,7 @@ public class Bankperfect
                             "Y")))
                     {
                         CreditCardParser creditCardParser = new CreditCardParser();
-                        List<Statement> cbStatements = processFiles(getAccount(CB_ACCOUNT_ID), getDir(CB_DIR),
-                                getSetupFile(CB_EXCLUDE), getSetupFile(CB_MAPPING), "pdf", creditCardParser,false);
+                        List<Statement> cbStatements = processFiles(KEY_CREDITCARD);
                         if (cbStatements != null)
                         {
                             allStatements.addAll(cbStatements);
@@ -232,8 +307,7 @@ public class Bankperfect
                     {
 
                         ImmoParser immoParser = new ImmoParser();
-                        List<Statement> cbStatements = processFiles(getAccount(IMMO_ACCOUNT_ID), getDir(IMMO_DIR),
-                                getSetupFile(IMMO_EXCLUDE), getSetupFile(IMMO_MAPPING), "pdf", immoParser,true);
+                        List<Statement> cbStatements = processFiles(KEY_IMMO);
                         if (cbStatements != null)
                         {
                             allStatements.addAll(cbStatements);
@@ -299,20 +373,25 @@ public class Bankperfect
         }
     }
 
-    private List<Statement> processFiles(final String accountSignature, final String directoryToFetch,
-            final File exclude, final File mapping, final String fileExtention,
-            IStatementPreparator iStatementPreparator,final boolean layoutStripper) throws IOException
+    private IStatementPreparator getParser(String keySalary)
     {
+        return getStatementPreparators().get(keySalary);
+    }
+
+    private List<Statement> processFiles(final String key) throws IOException
+    {
+        IStatementPreparator preparator = getStatementPreparators().get(key);
+
         List<Statement> allStatements = new ArrayList<Statement>();
-        Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
+        Collection<File> files = FileUtils.listFiles(preparator.getDirectoryToFetch(), preparator.getFileExtention(), false);
         for (File file : files)
         {
             List<Statement> statements = null;
             LOG.info("process[{}]", file.getName());
-            List<String> lines = readFullPdf(file, exclude,layoutStripper);
-            Map<String, String> mappingArray = this.readFileMap(mapping);
+            List<String> lines = readFullPdf(file, preparator.getExclude(),preparator.isLayoutStripper());
+            Map<String, String> mappingArray = this.readFileMap(preparator.getMapping());
 
-            statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
+            statements = preparator.prepare(lines, mappingArray, preparator.getAccountSignature());
             if ( statements != null && statements.size() > 0 ) {
                 LOG.info("[{}] statements for [{}]",statements.size(),file.getName());
                 allStatements.addAll(statements);
@@ -323,6 +402,31 @@ public class Bankperfect
         }
         return allStatements;
     }
+
+    private List<Statement> processFiles(final String accountSignature, final String directoryToFetch,
+        final File exclude, final File mapping, final String fileExtention,
+        IStatementPreparator iStatementPreparator,final boolean layoutStripper) throws IOException
+{
+    List<Statement> allStatements = new ArrayList<Statement>();
+    Collection<File> files = FileUtils.listFiles(new File(directoryToFetch), new String[] { fileExtention }, false);
+    for (File file : files)
+    {
+        List<Statement> statements = null;
+        LOG.info("process[{}]", file.getName());
+        List<String> lines = readFullPdf(file, exclude,layoutStripper);
+        Map<String, String> mappingArray = this.readFileMap(mapping);
+
+        statements = iStatementPreparator.prepare(lines, mappingArray, accountSignature);
+        if ( statements != null && statements.size() > 0 ) {
+            LOG.info("[{}] statements for [{}]",statements.size(),file.getName());
+            allStatements.addAll(statements);
+        }
+        else {
+            LOG.warn("No statement for [{}]",file.getName());
+        }
+    }
+    return allStatements;
+}
 
     private List<Statement> processRecurrent(final String directoryToFetch, final String fileExtention)
             throws IOException

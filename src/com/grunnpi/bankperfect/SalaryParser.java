@@ -22,6 +22,8 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
     private static final String TOTAL_NET_A_VIRER = "Total net à virer";
     private static final String CALCULE_EN = "Calculé en ";
 
+
+
     private static boolean addAllPayroll = false;
 
     public List<Statement> prepare(List<String> lines,Map<String,String> mapping, final String accountSignature)
