@@ -1,4 +1,6 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.parser;
+
+import com.grunnpi.bankperfect.data.Statement;
 
 import java.io.File;
 import java.util.List;

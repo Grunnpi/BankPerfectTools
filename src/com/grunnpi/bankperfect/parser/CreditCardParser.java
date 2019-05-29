@@ -1,18 +1,17 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.parser;
 
+import com.grunnpi.bankperfect.data.Statement;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class CreditCardParser extends  AbstractParser implements IStatementPreparator
+public class CreditCardParser extends AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(CreditCardParser.class);
     private static final String TOTAL_DES_MOUVEMENTS = "Total des mouvements - ";

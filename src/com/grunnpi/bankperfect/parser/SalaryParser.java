@@ -1,16 +1,15 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.parser;
 
+import com.grunnpi.bankperfect.data.Statement;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class SalaryParser extends AbstractParser implements IStatementPreparator
 {

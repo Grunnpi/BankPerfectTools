@@ -1,18 +1,17 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.parser;
 
+import com.grunnpi.bankperfect.data.AccountID;
+import com.grunnpi.bankperfect.data.BankFile;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 public class AbstractParser
 {
@@ -95,7 +94,7 @@ public class AbstractParser
         this.mapping = mapping;
         this.fileExtention = new String[] { fileExtention };
         this.layoutStripper = layoutStripper;
-    };
+    }
 
     public boolean hasFile(){
         return listBankFiles.size() > 0;

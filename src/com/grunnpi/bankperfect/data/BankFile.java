@@ -1,4 +1,4 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.data;
 
 import java.io.File;
 
