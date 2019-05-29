@@ -1,5 +1,6 @@
-package com.grunnpi.bankperfect;
+package com.grunnpi.bankperfect.tool;
 
+import com.grunnpi.bankperfect.data.Statement;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
