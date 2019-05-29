@@ -1,6 +1,10 @@
 package com.grunnpi.bankperfect.tool;
 
+import com.grunnpi.bankperfect.data.Statement;
 import io.github.jonathanlink.PDFLayoutTextStripper;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pdfbox.cos.COSDocument;
@@ -10,10 +14,11 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.slf4j.LoggerFactory.getLogger;
@@ -21,6 +26,16 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class FileHelper
 {
     private static final Logger LOG = getLogger(FileHelper.class);
+    private static final String CSV_C_FILE = "file";
+    private static final String CSV_C_BANK = "bank";
+    private static final String CSV_C_BRANCH = "branch";
+    private static final String CSV_C_ACCOUNT = "account";
+    private static final String CSV_C_DATE = "date";
+    private static final String CSV_C_TIER = "tier";
+    private static final String CSV_C_DESCRIPTION = "description";
+    private static final String CSV_C_AMOUNT = "amount";
+    private static String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_TIER,
+            CSV_C_DESCRIPTION, CSV_C_AMOUNT };
 
     public static Map<String, String> readFileMap(File file)
     {
@@ -155,7 +170,7 @@ public class FileHelper
         return filename.replace(".convertme.", ".converted.") + ".tmp";
     }
 
-    public static String fileConvert(final String filename, final String fromCharset, final String toCharset)
+    private static String fileConvert(final String filename, final String fromCharset, final String toCharset)
     {
         String tempFilename = renameConverted(filename);
         try
@@ -176,5 +191,84 @@ public class FileHelper
         }
         LOG.info("Converted[{}] from [{}] to [{}]", filename, fromCharset, toCharset);
         return tempFilename;
+    }
+
+    public static void saveAsCsv(final String filename, List<Statement> statements) throws IOException
+    {
+        // save to .CSV stuff
+        BufferedWriter out = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(filename, true), StandardCharsets.UTF_8));
+        CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(CSV_HEADERS));
+
+        for (Statement statement : statements)
+        {
+            printer.printRecord("xxx", statement.getBank(), statement.getBranch(), statement.getAccount(),
+                    statement.getStatementDate(), statement.getTier(), statement.getDescription(),
+                    statement.getAmount());
+        }
+        printer.close();
+        LOG.info("CSV dumped {} lines", statements.size());
+    }
+
+    public static Map<String, List<Statement>> readCsv(final String filename) throws IOException
+    {
+        String tempFilename = filename;
+        if (filename.contains(".convertme."))
+        {
+            // convert file
+            tempFilename = fileConvert(filename, "windows-1252", "UTF8");
+        }
+
+        Reader in = new InputStreamReader(new FileInputStream(tempFilename), Charset.forName("UTF8"));
+        //Reader in = new FileReader(getCsvCacheFilename());
+        Iterable<CSVRecord> records = CSVFormat.DEFAULT.withHeader(CSV_HEADERS).withFirstRecordAsHeader()
+                .withIgnoreEmptyLines().parse(in);
+
+        Map<String, List<Statement>> statementPerAccount = new HashMap<>();
+        for (CSVRecord record : records)
+        {
+            Statement statement = new Statement();
+
+            statement.setBank(record.get(CSV_C_BANK));
+            statement.setBranch(record.get(CSV_C_BRANCH));
+            statement.setAccount(record.get(CSV_C_ACCOUNT));
+
+            statement.setTier(record.get(CSV_C_TIER));
+            statement.setDescription(record.get(CSV_C_DESCRIPTION));
+
+            String statementDateString = record.get(CSV_C_DATE);
+
+            if (statementDateString.startsWith("#"))
+            {
+                statement.setStatementDateVariable(statementDateString);
+            }
+            else
+            {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                LocalDate statementDate = LocalDate.parse(statementDateString, formatter);
+                statement.setStatementDate(statementDate);
+            }
+
+            String amountString = record.get(CSV_C_AMOUNT);
+            double amount = Double.parseDouble(amountString);
+            statement.setAmount(amount);
+
+            // get account ID
+            if (!statementPerAccount.containsKey(statement.getBPKey()))
+            {
+                statementPerAccount.put(statement.getBPKey(), new ArrayList<>());
+            }
+            statementPerAccount.get(statement.getBPKey()).add(statement);
+        }
+
+        // here we can close stream
+        in.close();
+
+        if (filename.contains(".convertme."))
+        {
+            LOG.info("Delete temp file [{}] delete-{}", tempFilename, FileUtils.deleteQuietly(new File(tempFilename)));
+        }
+
+        return statementPerAccount;
     }
 }
