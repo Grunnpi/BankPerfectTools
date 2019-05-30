@@ -11,8 +11,8 @@ import java.util.Map;
 public interface IStatementPreparator
 {
     void setContext(final String ask, final String askParseAndDump, final String accountSignature,
-            final String directoryToFetch,
-            final File exclude, final File mapping, final String fileExtention,final boolean layoutStripper);
+                    final String directoryToFetch,
+                    final File exclude, final File mapping, final String fileExtention, final boolean layoutStripper, final String archiveDir);
 
     String getAccountSignature();
     File getExclude();

@@ -297,6 +297,8 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
             statement.setAccount(accountId[2]);
         }
 
+        bankFile.setToMoveToArchive(true);
+        bankFile.setTargetName(getArchiveDir() + "/" + bankFile.getFile().getName());
         return statements;
     }
 }

@@ -8,6 +8,7 @@ public class BankFile
     private boolean toMoveToArchive = false;
     private String targetName;
 
+
     public boolean isToRename()
     {
         return toRename;

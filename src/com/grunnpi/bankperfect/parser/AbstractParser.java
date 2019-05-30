@@ -26,6 +26,13 @@ public abstract class AbstractParser implements IStatementPreparator
     protected File mapping;
     protected String[] fileExtention;
     protected boolean layoutStripper;
+
+    protected String archiveDir;
+
+    public String getArchiveDir() {
+        return archiveDir;
+    }
+
     List<BankFile> listBankFiles = new ArrayList<BankFile>();
     private String askParseAndDump;
     private String ask;
@@ -143,11 +150,12 @@ public abstract class AbstractParser implements IStatementPreparator
     }
 
     public void setContext(final String ask, final String askParseAndDump, final String accountSignature,
-            final String directoryToFetch, final File exclude, final File mapping, final String fileExtention,
-            final boolean layoutStripper)
+                           final String directoryToFetch, final File exclude, final File mapping, final String fileExtention,
+                           final boolean layoutStripper, final String archiveDir)
     {
         this.ask = ask;
         this.askParseAndDump = askParseAndDump;
+        this.archiveDir = archiveDir;
         this.accountSignature = accountSignature;
         this.directoryToFetch = new File(directoryToFetch);
         this.exclude = exclude;

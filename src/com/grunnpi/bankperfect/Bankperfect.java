@@ -101,7 +101,7 @@ public class Bankperfect
         parser.setContext(getKey(parserName + "_ask"), getKey(parserName + "_askParseAndDump"),
                 getKey(parserName + "_accountId"), getKey(parserName + "_dir"), getSetupFile(parserName + "_exclude"),
                 getSetupFile(parserName + "_mapping"), getKey(parserName + "_fileExtention"),
-                Boolean.valueOf(getKey(parserName + "_layoutStripper")));
+                Boolean.valueOf(getKey(parserName + "_layoutStripper")), getKey(parserName + "_archive"));
         getStatementPreparators().put(parserName, parser);
     }
 
@@ -120,7 +120,7 @@ public class Bankperfect
 
                 // fetch out list of files per preparators
                 List<String> responsesList = new ArrayList<>();
-                responsesList.add("1. Full");
+                responsesList.add("1. Full & archive");
                 responsesList.add("2. Step by step");
 
                 String fullChoice = "1";
@@ -134,6 +134,7 @@ public class Bankperfect
                         fullChoice += "|" + preparatorEntry.getValue().getAskParseAndDump();
                     }
                 }
+
                 responsesList.add("9. Give up");
 
                 // start processing workflow
@@ -187,15 +188,16 @@ public class Bankperfect
                         {
                             for (BankFile bankFile : preparatorEntry.getValue().getListBankFiles())
                             {
-                                if (bankFile.isToRename())
-                                {
-                                    LOG.info("Parser[{}] > Rename [{}]:[{}]", preparatorEntry.getKey(),
-                                            bankFile.getFile().getName(), bankFile.getTargetName());
-                                }
-                                if (bankFile.isToMoveToArchive())
-                                {
+
+                                if (bankFile.isToMoveToArchive()) {
                                     LOG.info("Parser[{}] > Archive [{}]:[{}]", preparatorEntry.getKey(),
                                             bankFile.getFile().getName(), bankFile.getTargetName());
+                                    FileUtils.copyFile(bankFile.getFile(), new File(bankFile.getTargetName()));
+                                    bankFile.getFile().delete();
+                                } else if (bankFile.isToRename()) {
+                                    LOG.info("Parser[{}] > Rename [{}]:[{}]", preparatorEntry.getKey(),
+                                            bankFile.getFile().getName(), bankFile.getTargetName());
+                                    FileUtils.moveFile(bankFile.getFile(), new File(bankFile.getTargetName()));
                                 }
                             }
                         }

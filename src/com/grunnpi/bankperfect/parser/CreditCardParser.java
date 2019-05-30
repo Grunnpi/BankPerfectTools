@@ -153,6 +153,15 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
             LOG.warn("AmountTotal [{}]", df.format(amountTotal));
         }
 
+
+        final String statementYear = releveDate.substring(releveDate.length() - 4);
+        final String statementMonth = releveDate.substring(3, 5);
+        final String statementDay = releveDate.substring(0, 2);
+
+        bankFile.setToRename(true);
+        bankFile.setToMoveToArchive(true);
+        bankFile.setTargetName(getArchiveDir() + "/" + statementYear + "-" + statementMonth + "-" + statementDay + "-" + cardType + ".pdf");
+
         return listStatement;
     }
 }

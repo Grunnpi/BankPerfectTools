@@ -292,17 +292,25 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         {
                             mois = "Décembre";
                         }
-                        Date date = new SimpleDateFormat("MMMM", Locale.FRANCE).parse(mois);
-                        Calendar cal = Calendar.getInstance();
-                        cal.setTime(date);
 
-                        String annee = dateSplit[1];
-                        if (annee.length() == 2)
-                        {
-                            annee = "20" + annee;
+                        try {
+                            Date date = new SimpleDateFormat("MMMM", Locale.FRANCE).parse(mois);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(date);
+
+                            String annee = dateSplit[1];
+                            if (annee.length() == 2) {
+                                annee = "20" + annee;
+                            }
+
+                            theDateTransaction = String.format("01/%02d/%s", cal.get(Calendar.MONTH) + 1, annee);
+                        } catch (java.text.ParseException e) {
+                            LOG.error("Creating date[{}]>[{}]", theDateTransaction, dateSplited, e);
+                            theDateTransaction = theDateTraitement;
+                            LOG.warn("Assume date [{}] for [{}]", theDateTransaction, fullLine);
+                            theAdditionalComment = "(" + dateSplited + ")";
                         }
 
-                        theDateTransaction = String.format("01/%02d/%s", cal.get(Calendar.MONTH) + 1, annee);
 
                         theDateTransactionLastFormatted = theDateTransaction;
                     }
@@ -384,6 +392,9 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     LocalDate statementDate = LocalDate.parse(theDateTraitement, formatter);
 
                     statement.setStatementDate(statementDate);
+
+                    LOG.debug("add [{}] [{}][{}] [{}]", statement.getStatementDate(), statement.getTier(), statement.getDescription(), statement.getStatementDate());
+
                     listStatement.add(statement);
                 }
             }
