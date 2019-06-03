@@ -9,6 +9,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessFile;
+import org.apache.pdfbox.io.RandomAccessRead;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -79,7 +80,8 @@ public class FileHelper
         String parsedText;
         try
         {
-            PDFParser parser = new PDFParser(new RandomAccessFile(pdfFile, "r"));
+            RandomAccessRead raf = new RandomAccessFile(pdfFile, "r");
+            PDFParser parser = new PDFParser(raf);
             parser.parse();
             cosDoc = parser.getDocument();
             pdDoc = new PDDocument(cosDoc);
@@ -117,6 +119,7 @@ public class FileHelper
             }
             cosDoc.close();
             //System.out.println(StringUtils.replace(parsedText,"\r","###\r"));
+            raf.close();
         }
         catch (Exception e)
         {

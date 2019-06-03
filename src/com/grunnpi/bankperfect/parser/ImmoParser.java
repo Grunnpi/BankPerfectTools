@@ -102,6 +102,23 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                             theDateTransactionLast = statementDate.format(formatterDate);
                             LOG.info("Owner[{}]Number[{}]-Date[{}]({})", theOwner, theDecompte, theDateTraitement,
                                     theDateTransactionLast);
+
+                            String targetFilename = bankFile.getFile().getName();
+                            if (!bankFile.getFile().getName().startsWith("2019-") && !bankFile.getFile().getName()
+                                    .startsWith("2018-"))
+                            {
+                                final String statementYear = theDateTraitement
+                                        .substring(theDateTraitement.length() - 4);
+                                final String statementMonth = theDateTraitement.substring(3, 5);
+                                final String statementDay = theDateTraitement.substring(0, 2);
+
+                                targetFilename =
+                                        statementYear + "-" + statementMonth + "-" + statementDay + "-" + bankFile
+                                                .getFile().getName();
+                            }
+
+                            bankFile.setToMoveToArchive(true);
+                            bankFile.setTargetName(getArchiveDir() + "/#THE_BIEN#/" + targetFilename);
                         }
                         else
                         {
@@ -187,6 +204,9 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     theSolde = StringUtils.substringAfter(theSolde, " ");
                     LOG.info("Solde[{}] fetch from line [{}]", theSolde, fullLine);
                     isStuffBail = false;
+
+                    bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
+
                 }
                 else if (line.contains("Solde nul au "))
                 {
@@ -194,6 +214,8 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     theSolde = StringUtils.substringAfter(theSolde, " ");
                     LOG.info("Solde[{}] fetch from line [{}]", theSolde, fullLine);
                     isStuffBail = false;
+
+                    bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
                 }
                 else if (line.startsWith("Loyer ") || line.startsWith("Provision charges courantes ") || line
                         .startsWith("Garantie loyers impayés (GLI)") || line.startsWith("Honoraires de gestion ")

@@ -141,10 +141,10 @@ public class Bankperfect
 
                 String processChoice = ConsoleHelper.readConsoleMultipleChoice("Processing ?", responsesList);
                 if (processChoice.matches(fullChoice) || (processChoice.matches("2") && ConsoleHelper
-                        .readConsole("Parse and dump stuff ?", "Y/N", "Y")))
+                        .readConsole("Parse and dump stuff ?", "1/0", "1")))
                 {
                     if (processChoice.matches(fullChoice) || (processChoice.matches("2") && ConsoleHelper
-                            .readConsole("New CSV cache file ?", "Y/N", "Y")))
+                            .readConsole("New CSV cache file ?", "1/0", "1")))
                     {
                         FileUtils.deleteQuietly(new File(getCsvCacheFilename()));
                     }
@@ -156,7 +156,7 @@ public class Bankperfect
                     {
                         String auto = "1|" + preparatorEntry.getValue().getAskParseAndDump();
                         if (processChoice.matches(auto) || (processChoice.matches("2") && ConsoleHelper
-                                .readConsole(preparatorEntry.getValue().getAsk() + " ?", "Y/N", "Y")))
+                                .readConsole(preparatorEntry.getValue().getAsk() + " ?", "1/0", "1")))
                         {
                             List<Statement> salaryStatements = preparatorEntry.getValue().processFiles();
                             if (salaryStatements != null)
@@ -172,14 +172,35 @@ public class Bankperfect
 
                 // read CSV and prepare .ofx file
                 if (processChoice.matches(fullChoice) || (processChoice.matches("2") && ConsoleHelper.readConsole(
-                        "Read CSV and dump OFX ?", "Y/N", "Y")))
+                        "Read CSV and dump OFX ?", "1/0", "1")))
                 {
                     csvCacheToOfx();
                 }
 
+                boolean hasSomethingToArchive = false;
+                for (Map.Entry<String, IStatementPreparator> preparatorEntry : getStatementPreparators().entrySet())
+                {
+                    if (preparatorEntry.getValue().hasFile())
+                    {
+                        for (BankFile bankFile : preparatorEntry.getValue().getListBankFiles())
+                        {
+
+                            if (bankFile.isToMoveToArchive())
+                            {
+                                hasSomethingToArchive = true;
+                                break;
+                            }
+                            else if (bankFile.isToRename())
+                            {
+                                hasSomethingToArchive = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 // Archive files
-                if (processChoice.matches(fullChoice) || (processChoice.matches("2") && ConsoleHelper
-                        .readConsole("Archive files ?", "Y/N", "Y")))
+                if (hasSomethingToArchive && ConsoleHelper.readConsole("Archive files ?", "1/0", "1"))
                 {
                     // fetch out list of files per preparators
                     for (Map.Entry<String, IStatementPreparator> preparatorEntry : getStatementPreparators().entrySet())
@@ -192,7 +213,7 @@ public class Bankperfect
                                 if (bankFile.isToMoveToArchive()) {
                                     LOG.info("Parser[{}] > Archive [{}]:[{}]", preparatorEntry.getKey(),
                                             bankFile.getFile().getName(), bankFile.getTargetName());
-                                    FileUtils.copyFile(bankFile.getFile(), new File(bankFile.getTargetName()));
+                                    FileUtils.moveFile(bankFile.getFile(), new File(bankFile.getTargetName()));
                                     bankFile.getFile().delete();
                                 } else if (bankFile.isToRename()) {
                                     LOG.info("Parser[{}] > Rename [{}]:[{}]", preparatorEntry.getKey(),

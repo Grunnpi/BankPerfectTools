@@ -66,7 +66,9 @@ public class RecurrentParser extends AbstractParser implements IStatementPrepara
             }
 
             bankFile.setToRename(false);
-            bankFile.setToMoveToArchive(false);
+
+            bankFile.setToMoveToArchive(true);
+            bankFile.setTargetName(getArchiveDir() + "/" + bankFile.getFile().getName());
         }
 
         if (statementPerAccount.size() > 0)
