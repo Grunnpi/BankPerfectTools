@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -219,7 +220,8 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                 }
                 else if (line.startsWith("Loyer ") || line.startsWith("Provision charges courantes ") || line
                         .startsWith("Garantie loyers impayés (GLI)") || line.startsWith("Honoraires de gestion ")
-                        || line.startsWith("Assurance loyers impayés") || line.startsWith("Garantie des loyers")
+                        || line.startsWith("Assurance loyers impayés") || line.startsWith("Garantie des loyers") || line
+                        .startsWith("Dépôt de garantie")
                         || isStuffBail)
                 {
                     boolean oneTimeNegativeSign = false;
@@ -228,11 +230,59 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     {
                         theOperation = "Charge";
                         line = line.replace("Provision charges courantes ", "");
+                        if (line.contains(" au "))
+                        {
+                            int posAu = line.indexOf(" au ");
+                            String subDate = line.substring(0, posAu);
+                            String subDateMonth = theDateTransactionLast;
+                            try
+                            {
+                                Date subDateParsed = new SimpleDateFormat("dd/MM/yy", Locale.FRANCE).parse(subDate);
+                                subDateMonth = new SimpleDateFormat("MMMM yyyy", Locale.FRANCE).format(subDateParsed);
+                            }
+                            catch (ParseException e)
+                            {
+                                LOG.error("Cannot extract sub date [{}]", subDate);
+                            }
+                            line = subDateMonth + line.substring(posAu + posAu + 4);
+                        }
+                    }
+                    else if (line.startsWith("Dépôt de garantie (conservé)"))
+                    {
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Dépôt de garantie (conservé", "");
+                        line = StringUtils.substringAfter(line, ") ");
+                        line = theDateTransactionLast + " 5,84 " + line;
+                        theAdditionalComment = " (conservé)";
+                        oneTimeNegativeSign = true;
+                    }
+                    else if (line.startsWith("Dépôt de garantie"))
+                    {
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Dépôt de garantie", "");
+                        line = theDateTransactionLast + " 5,84 " + line;
+                        theAdditionalComment = " (versé)";
                     }
                     else if (line.startsWith("Loyer "))
                     {
                         theOperation = "Loyer";
                         line = line.replace("Loyer ", "");
+                        if (line.contains(" au "))
+                        {
+                            int posAu = line.indexOf(" au ");
+                            String subDate = line.substring(0, posAu);
+                            String subDateMonth = theDateTransactionLast;
+                            try
+                            {
+                                Date subDateParsed = new SimpleDateFormat("dd/MM/yy", Locale.FRANCE).parse(subDate);
+                                subDateMonth = new SimpleDateFormat("MMMM yyyy", Locale.FRANCE).format(subDateParsed);
+                            }
+                            catch (ParseException e)
+                            {
+                                LOG.error("Cannot extract sub date [{}]", subDate);
+                            }
+                            line = subDateMonth + line.substring(posAu + posAu + 4);
+                        }
                     }
                     else if (line.startsWith("Garantie loyers impayés (GLI)"))
                     {
@@ -260,6 +310,11 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
                     }
                     else if (line.startsWith("Honoraires de gestion 7,00% "))
+                    {
+                        theOperation = "Frais";
+                        line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
+                    }
+                    else if (line.startsWith("Frais d'état des lieux "))
                     {
                         theOperation = "Frais";
                         line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
@@ -378,6 +433,10 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     if (theDescription.contains("CONTRAT ENTRETIEN"))
                     {
                         theOperation = "Entretien";
+                    }
+                    else if (theDescription.contains("Frais d'état des lieux"))
+                    {
+                        theOperation = "Frais";
                     }
                     else
                     {
