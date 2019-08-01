@@ -243,10 +243,15 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                 montant = montant.replace(",", "");
                 try
                 {
-
                     double amountComputed = Double.parseDouble(montant);
-                    //                    LOG.info("**Amount[{}]/[{}] for line [{}]/[{}]",amountComputed,montant,fullLine,description);
-                    newStatement.setAmount(amountComputed);
+                    if ( fullLine.equals(description)) {
+                        LOG.debug("skip : desc==line [{}]", fullLine);
+                        newStatement.setValid(false);
+                    }
+                    else {
+                        LOG.debug("**Amount[{}]/[{}] for line [{}]/[{}]",amountComputed,montant,fullLine,description);
+                        newStatement.setAmount(amountComputed);
+                    }
                 }
                 catch (Exception e)
                 {
