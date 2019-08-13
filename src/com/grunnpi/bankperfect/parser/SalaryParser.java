@@ -224,7 +224,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                             {
                                 montant = "-" + montant;
                             }
-                            else if (description.equals("CIS - CIM - CIP"))
+                            else if (description.contains("CIS - CIM - CIP"))
                             {
                                 if (montant.charAt(0) == '-')
                                 {
@@ -279,6 +279,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
         }
 
         List<Statement> statements = new ArrayList<Statement>();
+
         if (addAllPayroll)
         {
             for (List<Statement> payroll : allPayroll)
@@ -295,15 +296,19 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
         }
 
         String[] accountId = accountSignature.split(",");
+        String dateFile = "";
         for (Statement statement : statements)
         {
             statement.setBank(accountId[0]);
             statement.setBranch(accountId[1]);
             statement.setAccount(accountId[2]);
+            dateFile = statement.getStatementDate().toString();
         }
 
         bankFile.setToMoveToArchive(true);
-        bankFile.setTargetName(getArchiveDir() + "/" + bankFile.getFile().getName());
+        String targetFile = StringUtils.substring(dateFile,0,7) + ".pdf";
+        LOG.info("Target filename[{}]",targetFile);
+        bankFile.setTargetName(getArchiveDir() + "/" + targetFile);
         return statements;
     }
 }
