@@ -83,6 +83,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                     double amount = 0;
                     String description = "";
 
+                    couldBeAmount = couldBeAmount.replace(".", "");
                     couldBeAmount = couldBeAmount.replace(",", ".");
                     if (StringUtils.isEmpty(couldBeAmount))
                     {
@@ -104,7 +105,13 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                     else
                     {
                         // negative amount
-                        amount = Double.parseDouble(couldBeAmount) * -1;
+                        try {
+                            amount = Double.parseDouble(couldBeAmount) * -1;
+                        }
+                        catch (Exception e)
+                        {
+                            LOG.error("line [{}] error",line,e);
+                        }
                         description = StringUtils.substringBeforeLast(line.trim(), "-").trim();
                     }
 
