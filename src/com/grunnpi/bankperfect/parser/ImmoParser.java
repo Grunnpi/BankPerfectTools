@@ -224,6 +224,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         .startsWith("Dépôt de garantie")
                         || isStuffBail)
                 {
+                    theDescription = "";
                     boolean oneTimeNegativeSign = false;
                     boolean oneTimePositiveSign = false;
                     if (line.startsWith("Provision charges courantes "))
@@ -319,6 +320,24 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         theOperation = "Frais";
                         line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
                     }
+                    else if (line.contains("Solde Charges courantes"))
+                    {
+                        theOperation = "Charge";
+                        theDescription = "Solde Charges courantes";
+                        oneTimeNegativeSign = true;
+                    }
+                    else if (line.contains("Remb. Dépôt de garantie (conservé)"))
+                    {
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Remb. Dépôt de garantie (conservé)",
+                                "Remb. Dépôt de garantie (conservé) 7,00");
+                        oneTimeNegativeSign = true;
+                    }
+                    else if (line.contains("Remb. Dépôt de garantie"))
+                    {
+                        line = line.replace("Remb. Dépôt de garantie", "Remb. Dépôt de garantie 7,00");
+                        theOperation = "Dépot de garantie";
+                    }
                     else
                     {
                         theOperation = "Loyer";
@@ -337,6 +356,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     else
                     {
                         LOG.error("line [{}] without <5,84 or 7,00> as separator.", line);
+                        theOperation = "Travaux"; // assume weird lines are these
                     }
 
                     theDateTransaction = line;
@@ -348,6 +368,10 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     //String[] dateSplit = theDateTransaction.split(" ");
                     String dateSplited = StringUtils.substringBeforeLast(theDateTransaction, "@");
                     String afterDateSplited = StringUtils.substringAfterLast(theDateTransaction, "@").trim();
+                    if (StringUtils.isEmpty(afterDateSplited))
+                    {
+                        afterDateSplited = StringUtils.substringAfterLast(theDateTransaction, " ").trim();
+                    }
 
                     //                    LOG.info("Split [{}] > [{}]//[{}]",theDateTransaction,dateSplited,afterDateSplited);
 
@@ -382,9 +406,10 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
 
                             theDateTransaction = String.format("01/%02d/%s", cal.get(Calendar.MONTH) + 1, annee);
                         } catch (java.text.ParseException e) {
-                            LOG.error("Creating date[{}]>[{}]", theDateTransaction, dateSplited, e);
+                            //LOG.error("Creating date[{}]>[{}]", theDateTransaction, dateSplited, e);
+                            LOG.warn("Cannot cast [{}] as date : Assume date [{}] for line [{}]", mois,
+                                    theDateTraitement, fullLine);
                             theDateTransaction = theDateTraitement;
-                            LOG.warn("Assume date [{}] for [{}]", theDateTransaction, fullLine);
                             theAdditionalComment = "(" + dateSplited + ")";
                         }
 
@@ -398,10 +423,14 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     }
 
                     // TODO: faut virer le nom du bail dans la description
-                    theDescription = dateSplited;
-                    theDescription = theDescription.replace(" MME GASPARINI CECIL", "");
-                    theDescription = theDescription.replace(" MLLE MICHELE NGATOU", "");
-                    theDescription = theDescription.replace(" MME JEANNINE FRIGOL", "");
+                    if (StringUtils.isEmpty(theDescription))
+                    {
+                        theDescription = dateSplited;
+                        theDescription = theDescription.replace(" MME GASPARINI CECIL", "");
+                        theDescription = theDescription.replace(" MLLE MICHELE NGATOU", "");
+                        theDescription = theDescription.replace(" MME JEANNINE FRIGOL", "");
+                    }
+
 
                     if (oneTimeNegativeSign)
                     {
