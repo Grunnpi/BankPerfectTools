@@ -35,6 +35,9 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
     public List<Statement> prepare(BankFile bankFile, List<String> lines, Map<String, String> mapping,
             final String accountSignature)
     {
+
+
+
         List<Statement> listStatement = new ArrayList<Statement>();
         {
             int nbLine = 0;
@@ -64,6 +67,18 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
             for (String line : lines)
             {
                 nbLine++;
+
+                // Mapping desc
+                for (Map.Entry<String, String> entry : mapping.entrySet())
+                {
+                    if (line.startsWith(entry.getKey()))
+                    {
+                        line = StringUtils.replace(line,entry.getKey(),entry.getValue());
+                        break;
+                    }
+                }
+
+
                 isRealLine = false;
                 String fullLine = line;
                 LOG.debug("#{} [{}]", nbLine, line);
