@@ -40,10 +40,12 @@ public abstract class AbstractParser implements IStatementPreparator
     protected static boolean areEqualByThreeDecimalPlaces(double a, double b)
     {
         DecimalFormat df = new DecimalFormat("####.##;-####.##");
-        df.setRoundingMode(RoundingMode.UP);
+        df.setRoundingMode(RoundingMode.HALF_EVEN);
         String as = df.format(a);
         String bs = df.format(b);
-        //        LOG.info("[{}].equals[{}]={} <while input value are {} and {}>",as,bs,as.equals(bs),a,b);
+        if ( !as.equals(bs) ) {
+            LOG.info("[{}].equals[{}]={} <while input value are {} and {}>",as,bs,as.equals(bs),a,b);
+        }
         return as.equals(bs);
     }
 

@@ -58,6 +58,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
             String theDateTraitement = "";
 
             String theSolde = "";
+            boolean isSoldeReady = false;
 
             boolean isEcritureLot = false;
             boolean isStuffBail = false;
@@ -214,22 +215,35 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     isEcritureLot = false;
                     isStuffBail = false;
                 }
-                else if (line.contains("Solde en votre faveur au "))
+                else if (!isSoldeReady && line.contains("Solde en votre faveur au "))
                 {
                     theSolde = line.replace("Solde en votre faveur au ", "@");
                     theSolde = StringUtils.substringAfter(theSolde, " ");
                     LOG.info("Solde[{}] fetch from line [{}]", theSolde, fullLine);
                     isStuffBail = false;
+                    isSoldeReady = true;
 
                     bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
 
                 }
-                else if (line.contains("Solde nul au "))
+                else if (!isSoldeReady && line.contains("Solde nul au "))
                 {
                     theSolde = line.replace("Solde nul au ", "@");
                     theSolde = StringUtils.substringAfter(theSolde, " ");
                     LOG.info("Solde[{}] fetch from line [{}]", theSolde, fullLine);
                     isStuffBail = false;
+                    isSoldeReady = true;
+
+                    bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
+                }
+                else if (line.contains("Acompte au "))
+                {
+                    theSolde = line.replace("Acompte au ", "@");
+                    theSolde = theSolde.replace(" SCI JEMASARAEL", "");
+                    theSolde = StringUtils.substringAfter(theSolde, " ");
+                    LOG.info("Solde[{}] fetch from line [{}]", theSolde, fullLine);
+                    isStuffBail = false;
+                    isSoldeReady = true;
 
                     bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
                 }
