@@ -50,9 +50,14 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                 }
                 else if (line.startsWith("Mouvement"))
                 {
-                    if (line.contains("VISA"))
+                    LOG.debug("Type de carte [{}]", line);
+                    if (line.contains("VISA CLASSIC"))
                     {
-                        cardType = "VISA";
+                        cardType = "VISA CLASSIC";
+                    }
+                    else if (line.contains("VISA GOLD"))
+                    {
+                        cardType = "VISA GOLD";
                     }
                     else
                     {
