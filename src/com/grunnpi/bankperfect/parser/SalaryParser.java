@@ -16,11 +16,11 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(SalaryParser.class);
 
-    private static final String REPORT_DEJA_EFFECTUES = "Reports d√©j√† effectu√©s";
-    private static final String DECOMPTE_REMUNERATION_START = "D√©compte de r√©mun√©ration de ";
+    private static final String REPORT_DEJA_EFFECTUES = "Reports dÈj‡ effectuÈs";
+    private static final String DECOMPTE_REMUNERATION_START = "DÈcompte de rÈmunÈration de ";
     private static final String PRESTATION_DESIGNATION_START = "Prestation D";
-    private static final String TOTAL_NET_A_VIRER = "Total net √† virer";
-    private static final String CALCULE_EN = "Calcul√© en ";
+    private static final String TOTAL_NET_A_VIRER = "Total net ‡ virer";
+    private static final String CALCULE_EN = "CalculÈ en ";
 
     private static boolean addAllPayroll = false;
 
@@ -194,10 +194,10 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                             LOG.error("Substring for lastSpace [{}][{}]", line, lastSpace);
                         }
 
-                        String[] array = { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie Esp√®ces 0.25 %",
+                        String[] array = { "Maladie Soins 2.80 %", "Maladie Soins NP 2.80 %", "Maladie EspËces 0.25 %",
                                 "Caisse de Pension 8.00 %", "Caisse de Pension NP 8.00 %",
-                                "Assurance d√©pendance 1.40 %", "Assurance d√©pendance NP 1.40 %",
-                                "Imp√¥t d'√©qui budg temp 0.50 %", "Imp√¥t d'√©qui budg temp NP 0.50 %" };
+                                "Assurance dÈpendance 1.40 %", "Assurance dÈpendance NP 1.40 %",
+                                "ImpÙt d'Èqui budg temp 0.50 %", "ImpÙt d'Èqui budg temp NP 0.50 %" };
 
                         boolean specialDebit = false;
                         for (String check : array)
@@ -220,7 +220,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                         }
                         else
                         {
-                            if (description.equals("Imp√¥t") || description.equals("Imp√¥t NP"))
+                            if (description.equals("ImpÙt") || description.equals("ImpÙt NP"))
                             {
                                 montant = "-" + montant;
                             }

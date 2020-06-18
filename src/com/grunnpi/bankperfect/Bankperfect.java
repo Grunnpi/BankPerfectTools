@@ -1,5 +1,23 @@
 package com.grunnpi.bankperfect;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
+import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.store.FileDataStoreFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.FileList;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.grunnpi.bankperfect.data.BankFile;
 import com.grunnpi.bankperfect.data.Statement;
 import com.grunnpi.bankperfect.parser.*;
@@ -17,12 +35,9 @@ import org.slf4j.Logger;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.security.GeneralSecurityException;
+import java.util.*;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -40,12 +55,21 @@ public class Bankperfect
     private static final String KEY_IMMO = "Immo";
     private static final String KEY_RECURRENT = "Recurrent";
 
+
+    private static final String APPLICATION_NAME = "AuPairTool";
+    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+
+    private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_METADATA_READONLY);
+    private static final String CREDENTIALS_FILE_PATH = "AuPair.json";
+
     // Config file
     private Configuration properties;
     private Map<String, IStatementPreparator> statementPreparators;
 
-    public static void main(String[] args) throws IOException, TemplateException
-    {
+
+
+    public static void main(String[] args) throws IOException, TemplateException, GeneralSecurityException {
         Bankperfect bankperfect = new Bankperfect();
         if (ConsoleHelper.readConsole("Debug ?", "1/0", "1"))
         {
@@ -104,9 +128,51 @@ public class Bankperfect
                 Boolean.valueOf(getKey(parserName + "_layoutStripper")), getKey(parserName + "_archive"));
         getStatementPreparators().put(parserName, parser);
     }
+    static int readTimeout = 60000;
+    static int connectTimeout = 60000;
+    public static HttpRequestInitializer getRequestInitializer(final GoogleCredential requestInitializer) {
+        return httpRequest -> {
+            requestInitializer.initialize(httpRequest);
+            httpRequest.setConnectTimeout(readTimeout);
+            httpRequest.setReadTimeout(connectTimeout);
+        };
+    }
+    private void runMe(String[] args) throws IOException, TemplateException, GeneralSecurityException {
 
-    private void runMe(String[] args) throws IOException, TemplateException
-    {
+        // TODO(developer): Replace these variables before running the sample.
+        String projectId = "AuPairTool";
+        File credentialsPath = new File("AuPair.json");
+
+        // Load credentials from JSON key file. If you can't set the GOOGLE_APPLICATION_CREDENTIALS
+        // environment variable, you can explicitly load the credentials file to construct the
+        // credentials.
+//        GoogleCredentials credentials;
+//        try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
+//            credentials = ServiceAccountCredentials.fromStream(serviceAccountStream);
+//        }
+//
+//        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+//        Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getRequestInitializer(credentials))
+//                .setApplicationName(APPLICATION_NAME)
+//                .build();
+//
+//        // Print the names and IDs for up to 10 files.
+//        FileList result = service.files().list()
+//                .setPageSize(10)
+//                .setFields("nextPageToken, files(id, name)")
+//                .execute();
+//        List<com.google.api.services.drive.model.File> files = result.getFiles();
+//        if (files == null || files.isEmpty()) {
+//            System.out.println("No files found.");
+//        } else {
+//            System.out.println("Files:");
+//            for (com.google.api.services.drive.model.File file : files) {
+//                System.out.printf("%s (%s)\n", file.getName(), file.getId());
+//            }
+//        }
+//        System.exit(-1);
+
+
         // process only if ok
         if (args.length > 0)
         {

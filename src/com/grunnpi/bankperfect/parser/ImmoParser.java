@@ -87,18 +87,18 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
 
                 if (!immoOwnerFound)
                 {
-                    // 1er ligne, num dÃ©compte + date
-                    if (line.contains("SCI JEMASARAEL") && (line.contains("RelevÃ©") || line.contains("Principal")))
+                    // 1er ligne, num décompte + date
+                    if (line.contains("SCI JEMASARAEL") && (line.contains("Relevé") || line.contains("Principal")))
                     {
-                        line = StringUtils.substringAfterLast(line, "DÃ©compte nÂ°");
+                        line = StringUtils.substringAfterLast(line, "Décompte n°");
                         line = line.trim();
                         theOwner = "SCI JEMASARAEL";
                         immoOwnerFound = true;
                     }
                     else if ((line.contains("Mr & Mme GRUNNAGEL") || line.contains("Mr & Mme   GRUNNAGEL")) && line
-                            .contains("RelevÃ©"))
+                            .contains("Relevé"))
                     {
-                        line = StringUtils.substringAfterLast(line, "nÂ°");
+                        line = StringUtils.substringAfterLast(line, "n°");
                         line = line.trim();
                         theOwner = "Mr & Mme GRUNNAGEL";
                         immoOwnerFound = true;
@@ -248,9 +248,9 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     bankFile.setTargetName(bankFile.getTargetName().replace("#THE_BIEN#", theBien));
                 }
                 else if (line.startsWith("Loyer ") || line.startsWith("Provision charges courantes ") || line
-                        .startsWith("Garantie loyers impayÃ©s (GLI)") || line.startsWith("Honoraires de gestion ")
-                        || line.startsWith("Assurance loyers impayÃ©s") || line.startsWith("Garantie des loyers") || line
-                        .startsWith("DÃ©pÃ´t de garantie")
+                        .startsWith("Garantie loyers impayés (GLI)") || line.startsWith("Honoraires de gestion ")
+                        || line.startsWith("Assurance loyers impayés") || line.startsWith("Garantie des loyers") || line
+                        .startsWith("Dépôt de garantie")
                         || isStuffBail)
                 {
                     theDescription = "";
@@ -277,21 +277,21 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                             line = subDateMonth + line.substring(posAu + posAu + 4);
                         }
                     }
-                    else if (line.startsWith("DÃ©pÃ´t de garantie (conservÃ©)"))
+                    else if (line.startsWith("Dépôt de garantie (conservé)"))
                     {
-                        theOperation = "DÃ©pot de garantie";
-                        line = line.replace("DÃ©pÃ´t de garantie (conservÃ©", "");
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Dépôt de garantie (conservé", "");
                         line = StringUtils.substringAfter(line, ") ");
                         line = theDateTransactionLast + " 5,84 " + line;
-                        theAdditionalComment = " (conservÃ©)";
+                        theAdditionalComment = " (conservé)";
                         oneTimeNegativeSign = true;
                     }
-                    else if (line.startsWith("DÃ©pÃ´t de garantie"))
+                    else if (line.startsWith("Dépôt de garantie"))
                     {
-                        theOperation = "DÃ©pot de garantie";
-                        line = line.replace("DÃ©pÃ´t de garantie", "");
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Dépôt de garantie", "");
                         line = theDateTransactionLast + " 5,84 " + line;
-                        theAdditionalComment = " (versÃ©)";
+                        theAdditionalComment = " (versé)";
                     }
                     else if (line.startsWith("Loyer "))
                     {
@@ -314,19 +314,19 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                             line = subDateMonth + line.substring(posAu + posAu + 4);
                         }
                     }
-                    else if (line.startsWith("Garantie loyers impayÃ©s (GLI)"))
+                    else if (line.startsWith("Garantie loyers impayés (GLI)"))
                     {
                         theOperation = "Assurance";
-                        line = line.replace("Garantie loyers impayÃ©s (GLI) ", "");
+                        line = line.replace("Garantie loyers impayés (GLI) ", "");
                         line = StringUtils.substringAfter(line, ") ");
                         line = theDateTransactionLast + " 5,84 " + line;
-                        theAdditionalComment = " (garantie des loyers impayÃ©s (GLI))";
+                        theAdditionalComment = " (garantie des loyers impayés (GLI))";
                     }
-                    else if (line.startsWith("Assurance loyers impayÃ©s"))
+                    else if (line.startsWith("Assurance loyers impayés"))
                     {
                         theOperation = "Assurance";
-                        line = line.replace("Assurance loyers impayÃ©s ", theDateTransactionLast + " 5,84 ");
-                        theAdditionalComment = " (assurance loyer impayÃ©s)";
+                        line = line.replace("Assurance loyers impayés ", theDateTransactionLast + " 5,84 ");
+                        theAdditionalComment = " (assurance loyer impayés)";
                     }
                     else if (line.startsWith("Garantie des loyers"))
                     {
@@ -344,7 +344,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         theOperation = "Frais";
                         line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
                     }
-                    else if (line.startsWith("Frais d'Ã©tat des lieux "))
+                    else if (line.startsWith("Frais d'état des lieux "))
                     {
                         theOperation = "Frais";
                         line = theDateTransactionLast + " 5,84 " + StringUtils.substringAfterLast(line, " ");
@@ -355,17 +355,17 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         theDescription = "Solde Charges courantes";
                         oneTimeNegativeSign = true;
                     }
-                    else if (line.contains("Remb. DÃ©pÃ´t de garantie (conservÃ©)"))
+                    else if (line.contains("Remb. Dépôt de garantie (conservé)"))
                     {
-                        theOperation = "DÃ©pot de garantie";
-                        line = line.replace("Remb. DÃ©pÃ´t de garantie (conservÃ©)",
-                                "Remb. DÃ©pÃ´t de garantie (conservÃ©) 7,00");
+                        theOperation = "Dépot de garantie";
+                        line = line.replace("Remb. Dépôt de garantie (conservé)",
+                                "Remb. Dépôt de garantie (conservé) 7,00");
                         oneTimeNegativeSign = true;
                     }
-                    else if (line.contains("Remb. DÃ©pÃ´t de garantie"))
+                    else if (line.contains("Remb. Dépôt de garantie"))
                     {
-                        line = line.replace("Remb. DÃ©pÃ´t de garantie", "Remb. DÃ©pÃ´t de garantie 7,00");
-                        theOperation = "DÃ©pot de garantie";
+                        line = line.replace("Remb. Dépôt de garantie", "Remb. Dépôt de garantie 7,00");
+                        theOperation = "Dépot de garantie";
                     }
                     else
                     {
@@ -384,7 +384,8 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     }
                     else
                     {
-                        LOG.error("line [{}] without <5,84 or 7,00> as separator.", line);
+                        LOG.error("line [{}] without <5,84 or 7,00> as separator. Assume last space", line);
+                        line = StringUtils.substringBeforeLast(line, " ") + "@" + StringUtils.substringAfterLast(line, " ");
                         theOperation = "Travaux"; // assume weird lines are these
                     }
 
@@ -416,11 +417,11 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         String mois = dateSplit[0];
                         if (mois.equals("AOUT"))
                         {
-                            mois = "AoÃ»t";
+                            mois = "Août";
                         }
                         else if (mois.equals("DECEMBRE"))
                         {
-                            mois = "DÃ©cembre";
+                            mois = "Décembre";
                         }
 
                         try {
@@ -492,7 +493,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     {
                         theOperation = "Entretien";
                     }
-                    else if (theDescription.contains("Frais d'Ã©tat des lieux"))
+                    else if (theDescription.contains("Frais d'état des lieux"))
                     {
                         theOperation = "Frais";
                     }

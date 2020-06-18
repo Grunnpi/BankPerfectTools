@@ -32,9 +32,15 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
             for (String line : lines)
             {
                 String fullLine = line;
+                LOG.debug("raw[{}]",fullLine);
                 if (line.length() <= 2)
                 {
                     //
+                }
+                else if (StringUtils.startsWith(line,"Relevé de carte(s) au "))
+                {
+                    releveDate = line.replace("Relevé de carte(s) au ", "");
+                    LOG.info("Relevé de carte(s) au [{}]", releveDate);
                 }
                 else if (line.startsWith(TOTAL_DES_MOUVEMENTS))
                 {
@@ -42,11 +48,6 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                     total = total.replace(".", "");
                     total = total.replace(",", ".");
                     amountTotal = Double.parseDouble(total) * -1;
-                }
-                else if (line.startsWith("RelevÃ© de carte(s) au"))
-                {
-                    releveDate = line.replace("RelevÃ© de carte(s) au ", "");
-                    LOG.info("RelevÃ© de carte(s) au [{}]", releveDate);
                 }
                 else if (line.startsWith("Mouvement"))
                 {
@@ -78,7 +79,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                     final String statementYear = statementRawDate.substring(statementRawDate.length() - 4);
                     final String statementMonth = statementRawDate.substring(3, 5);
                     final String statementDay = statementRawDate.substring(0, 2);
-                    //                    LOG.info("[{}] // [{}-{}-{}]",statementRawDate,statementYear,statementMonth,statementDay);
+
                     LocalDate localDate = LocalDate.of(Integer.valueOf(statementYear), Integer.valueOf(statementMonth),
                             Integer.valueOf(statementDay));
 
@@ -90,6 +91,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
 
                     couldBeAmount = couldBeAmount.replace(".", "");
                     couldBeAmount = couldBeAmount.replace(",", ".");
+                    //LOG.debug("Could be amount [{}]",couldBeAmount);
                     if (StringUtils.isEmpty(couldBeAmount))
                     {
 
@@ -125,11 +127,13 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
 
                     description = description + "-RELEVE " + cardType + " AU " + releveDate;
 
+                    LOG.debug("[{}] // [{}-{}-{}] // [{}] [{}]",statementRawDate,statementYear,statementMonth,statementDay,description,amount);
+
                     newStatement.setDescription(description);
                 }
                 else
                 {
-                    // retour Ã  la ligne pour dÃ©tail en plus sur la description
+                    // retour à la ligne pour détail en plus sur la description
                     //LOG.warn("line CR[{}]",line);
                 }
 
@@ -166,6 +170,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
         }
 
 
+        LOG.debug("Releve[{}]",releveDate);
         final String statementYear = releveDate.substring(releveDate.length() - 4);
         final String statementMonth = releveDate.substring(3, 5);
         final String statementDay = releveDate.substring(0, 2);
