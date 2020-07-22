@@ -71,18 +71,27 @@ public class Bankperfect
 
     public static void main(String[] args) throws IOException, TemplateException, GeneralSecurityException {
         Bankperfect bankperfect = new Bankperfect();
-        if (ConsoleHelper.readConsole("Debug ?", "1/0", "1"))
+
+        if (args.length > 0)
         {
-            Resource log4jResource = new ClassPathResource("log4j.debug.xml");
-            try
-            {
-                DOMConfigurator.configure(log4jResource.getURL());
-            }
-            catch (Exception e)
-            {
-                LOG.error("Something wrong append with log4j configuration, please check", e);
+            for ( String arg : args ) {
+                if ( "--debug=yes".equals(arg) ) {
+                    if (ConsoleHelper.readConsole("Debug ?", "1/0", "1"))
+                    {
+                        Resource log4jResource = new ClassPathResource("log4j.debug.xml");
+                        try
+                        {
+                            DOMConfigurator.configure(log4jResource.getURL());
+                        }
+                        catch (Exception e)
+                        {
+                            LOG.error("Something wrong append with log4j configuration, please check", e);
+                        }
+                    }
+                }
             }
         }
+
         bankperfect.runMe(args);
     }
 
