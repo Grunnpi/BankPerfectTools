@@ -89,10 +89,12 @@ public class FileHelper
             PDFTextStripper pdfStripper = new PDFTextStripper();
 
             PDFTextStripper pdfTextStripper = new PDFLayoutTextStripper();
-            LOG.info("Spacing tolerance [{}] [{}]",pdfTextStripper.getSpacingTolerance(),pdfTextStripper.getAverageCharTolerance());
+            LOG.info("before: Spacing tolerance [{}] [{}]",pdfTextStripper.getSpacingTolerance(),pdfTextStripper.getAverageCharTolerance());
             //pdfTextStripper.setAverageCharTolerance((float)0.8); // 0.3 default
-
             pdfTextStripper.setSpacingTolerance((float)1.5); // 0.5 default
+
+            LOG.info("after : Spacing tolerance [{}] [{}]",pdfTextStripper.getSpacingTolerance(),pdfTextStripper.getAverageCharTolerance());
+
 
             if (layoutStripper)
             {

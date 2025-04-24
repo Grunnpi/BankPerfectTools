@@ -15,7 +15,7 @@ import java.util.Map;
 public class CreditCardParser extends AbstractParser implements IStatementPreparator
 {
     private static final Logger LOG = LoggerFactory.getLogger(CreditCardParser.class);
-    private static final String TOTAL_DES_MOUVEMENTS = "Total des mouvements - ";
+    private static final String TOTAL_DES_MOUVEMENTS = "Total des mouvements ";
 
     public List<Statement> prepare(BankFile bankFile, List<String> lines, Map<String, String> mapping,
             final String accountSignature)
@@ -45,6 +45,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                 else if (line.startsWith(TOTAL_DES_MOUVEMENTS))
                 {
                     String total = line.replace(TOTAL_DES_MOUVEMENTS, "");
+                    total = total.replace("-", "");
                     total = total.replace(".", "");
                     total = total.replace(",", ".");
                     amountTotal = Double.parseDouble(total) * -1;
@@ -52,11 +53,11 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                 else if (line.startsWith("Mouvement"))
                 {
                     LOG.debug("Type de carte [{}]", line);
-                    if (line.contains("VISA CLASSIC"))
+                    if (line.toUpperCase().contains("VISA CLASSIC"))
                     {
                         cardType = "VISA CLASSIC";
                     }
-                    else if (line.contains("VISA GOLD"))
+                    else if (line.toUpperCase().contains("VISA GOLD"))
                     {
                         cardType = "VISA GOLD";
                     }
@@ -101,7 +102,16 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
 
                         if (StringUtils.isEmpty(couldBeAmount))
                         {
-                            LOG.error("No amount [{}] on line [{}]", couldBeAmount, fullLine);
+
+                            couldBeAmount = StringUtils.substring(line.trim(), StringUtils.lastIndexOf(line.trim(), " "));
+                            couldBeAmount = couldBeAmount.replace(".", "");
+                            couldBeAmount = couldBeAmount.replace(",", ".");
+                            if (StringUtils.isEmpty(couldBeAmount)) {
+                                LOG.error("No amount [{}] on line [{}]", couldBeAmount, fullLine);
+                            }  else {
+                                amount = Double.parseDouble(couldBeAmount);
+                                description = StringUtils.substring(line.trim(), 0, StringUtils.lastIndexOf(line.trim(), " ")).trim();
+                            }
                         }
                         else
                         {
@@ -123,11 +133,14 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                     }
 
                     newStatement.setAmount(amount);
-                    description = description.substring(22);
+                    if ( !StringUtils.isEmpty(description)) {
+                        description = description.substring(22);
+                        description = description + "-RELEVE " + cardType + " AU " + releveDate;
 
-                    description = description + "-RELEVE " + cardType + " AU " + releveDate;
-
-                    LOG.debug("[{}] // [{}-{}-{}] // [{}] [{}]",statementRawDate,statementYear,statementMonth,statementDay,description,amount);
+                        LOG.debug("[{}] // [{}-{}-{}] // [{}] [{}]",statementRawDate,statementYear,statementMonth,statementDay,description,amount);
+                    } else {
+                        LOG.warn("No valid description for line [{}]",line);
+                    }
 
                     newStatement.setDescription(description);
                 }

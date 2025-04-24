@@ -22,6 +22,10 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
     private static final String TOTAL_NET_A_VIRER = "Total net à virer";
     private static final String CALCULE_EN = "Calculé en ";
 
+    private static final String AVENTAGE_EN_NATURE = "Ass. Complémentaire Santé";
+    private static final String AVENTAGE_EN_NATURE2 = "Complementary Health Ins.";
+
+
     private static boolean addAllPayroll = false;
 
     public List<Statement> prepare(BankFile bankFile, List<String> lines, Map<String, String> mapping,
@@ -33,6 +37,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
         String addComment = "";
         String theCalculationDate = "";
         String totalPayrollExpected = "0";
+        Boolean isAventageNatureOnce = false;
 
         List<List<Statement>> allPayroll = new ArrayList<List<Statement>>();
         List<Statement> currentPayroll = null;
@@ -46,6 +51,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
             if (line.startsWith(DECOMPTE_REMUNERATION_START))
             {
                 addComment = line;
+                isAventageNatureOnce = false;
                 final String statementRawDate = addComment.replace(DECOMPTE_REMUNERATION_START, "").substring(0, 7);
                 final String statementYear = statementRawDate.substring(statementRawDate.length() - 4);
                 final String statementMonth = statementRawDate.substring(0, 2);
@@ -95,14 +101,14 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                 DecimalFormat df = new DecimalFormat("#.00");
                 if (areEqualByThreeDecimalPlaces(amountTotal, amountTotalComputed))
                 {
-                    LOG.info("Total [{}]==[{}] is OK [{}][{}]", df.format(amountTotal), df.format(amountTotalComputed),
-                            currentPayroll.get(0).getStatementDate(), theCalculationDate);
+                    LOG.info("Total [{}]==[{}] is OK [{}][{}] [{}]", df.format(amountTotal), df.format(amountTotalComputed),
+                            currentPayroll.get(0).getStatementDate(), theCalculationDate,bankFile.getFile());
                 }
                 else
                 {
-                    LOG.error("Total [{}]<>[{}] is NOT OK [{}][{}]", df.format(amountTotal),
+                    LOG.error("Total [{}]<>[{}] is NOT OK [{}][{}] [{}]", df.format(amountTotal),
                             df.format(amountTotalComputed), currentPayroll.get(0).getStatementDate(),
-                            theCalculationDate);
+                            theCalculationDate,bankFile.getFile());
                 }
 
                 // and then push it to payroll list
@@ -126,6 +132,8 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
 
                 newStatement.setRawLine(line);
                 newStatement.setValid(true);
+
+
 
                 boolean montantSiNegatifAMettrePositif = false;
                 if (line.contains(REPORT_DEJA_EFFECTUES))
@@ -269,6 +277,18 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
                     }
                 }
                 newStatement.setDescription(description);
+
+                if (line.contains(AVENTAGE_EN_NATURE) || line.contains(AVENTAGE_EN_NATURE2) ) {
+                    LOG.warn("Je vois un aventage en nature !!!");
+                    if (!isAventageNatureOnce) {
+                        isAventageNatureOnce = true;
+                        LOG.warn("C'est le premier : je garde en +");
+                    }else {
+                        LOG.warn("C'est le second : je soustrait en -");
+                        newStatement.setAmount(newStatement.getAmount() * -1);
+                        newStatement.setDescription(newStatement.getDescription() + " (retenue)");
+                    }
+                }
 
                 // end of statement fetching
                 if (currentPayroll != null && newStatement.isValid())

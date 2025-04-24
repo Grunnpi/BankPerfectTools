@@ -88,7 +88,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                 if (!immoOwnerFound)
                 {
                     // 1er ligne, num décompte + date
-                    if (line.contains("SCI JEMASARAEL") && (line.contains("Relevé") || line.contains("Principal")))
+                    if (line.contains("SCI JEMASARAEL") && (line.contains("Relevé") || line.contains("Principal") || line.contains("SCI JEMASARAEL") && line.contains(" du ")))
                     {
                         line = StringUtils.substringAfterLast(line, "Décompte n°");
                         line = line.trim();
@@ -130,7 +130,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                                 final String statementDay = theDateTraitement.substring(0, 2);
 
                                 targetFilename =
-                                        statementYear + "-" + statementMonth + "-" + statementDay + "-" + bankFile
+                                        statementYear + "-" + statementMonth + "-" + statementDay + "-#THE_BIEN#-" + bankFile
                                                 .getFile().getName();
                             }
 
@@ -158,13 +158,13 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     theBail = line.replace("Bail ", "");
                     isStuffBail = true;
                 }
-                else if (line.startsWith("Immeuble 36 rue Beethoven"))
+                else if (line.contains("rue Beethoven") && !line.contains("rue Beethoven, "))
                 {
                     theBien = "Beethoven";
                     isStuffBail = false;
                     LOG.info("Bien[{}]", theBien);
                 }
-                else if (line.startsWith("Maison 6, rue Bellevue"))
+                else if (line.contains("rue Bellevue"))
                 {
                     theBien = "Bellevue";
                     isStuffBail = false;
@@ -182,22 +182,24 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                         theBail = "Gestion Immeuble";
                         theTypeLot = "Immeuble";
                     }
+                    LOG.debug("typeLot[{}] fetch from line [{}]", theTypeLot, fullLine);
 
                     theSignePositive = false;
                     isStuffBail = false;
                 }
-                else if (line.startsWith("Lot 36 rue Beethoven, "))
+                else if (line.contains("rue Beethoven, "))
                 {
                     theTypeLot = line.replace("Lot 36 rue Beethoven, ", "");
 
                     if (theTypeLot.contains("Appartement Type 3"))
                     {
                         theTypeLot = "Appartement";
+                        LOG.debug("typeLot[{}] fetch from line [{}]", theTypeLot, fullLine);
                     }
                     theSignePositive = true;
                     isStuffBail = false;
                 }
-                else if (line.startsWith("Lot 6, rue Bellevue, Maison Type 7 et +"))
+                else if (line.contains("rue Bellevue"))
                 {
                     theBail = "Gestion Maison";
                     theTypeLot = "Maison";
@@ -384,7 +386,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     }
                     else
                     {
-                        LOG.error("line [{}] without <5,84 or 7,00> as separator. Assume last space", line);
+                        LOG.warn("line [{}] without <5,84 or 7,00> as separator. Assume last space", line);
                         line = StringUtils.substringBeforeLast(line, " ") + "@" + StringUtils.substringAfterLast(line, " ");
                         theOperation = "Travaux"; // assume weird lines are these
                     }
@@ -472,7 +474,11 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     }
                     else
                     {
-                        theMontant = theSignePositive ? afterDateSplited : "-" + afterDateSplited;
+                        if (line.contains("(conservé)")) {
+                            theMontant = !theSignePositive ? afterDateSplited : "-" + afterDateSplited;
+                        } else {
+                            theMontant = theSignePositive ? afterDateSplited : "-" + afterDateSplited;
+                        }
                     }
 
                     isRealLine = true;
@@ -518,7 +524,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                     Double amount = null;
                     try
                     {
-                        amount = Double.parseDouble(theMontant.replace(",", ".").replace(" ", ""));
+                        amount = Double.parseDouble(theMontant.replace("--", "-").replace(",", ".").replace(" ", ""));
                         //                        LOG.info("Amount s[{}] > d[{}]",theMontant,amount);
                     }
                     catch (Exception e)
@@ -551,6 +557,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                 else
                 {
                     LOG.error("Amount null for [{}]", statement.getDescription());
+                    statement.setAmount(0.0);
                 }
 
                 // add account
@@ -560,7 +567,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
             theSolde = theSolde.replace(" ", "").replace(",", ".");
             if (StringUtils.isEmpty(theSolde))
             {
-                LOG.error("No solde found ! Computed[{}]", amountTotalComputed);
+                LOG.error("No solde found ! Computed[{}] in [{}]", amountTotalComputed,bankFile.getFile());
             }
             else
             {
@@ -569,13 +576,13 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                 DecimalFormat df = new DecimalFormat("#.00");
                 if (areEqualByThreeDecimalPlaces(amountTotal, amountTotalComputed))
                 {
-                    LOG.info("Total [{}]==[{}] is OK [{}]", df.format(amountTotal), df.format(amountTotalComputed),
-                            theOwner);
+                    LOG.info("Final Total [{}]==[{}] is OK [{}] - [{}]", df.format(amountTotal), df.format(amountTotalComputed),
+                            theOwner,bankFile.getFile());
                 }
                 else
                 {
-                    LOG.error("Total [{}]<>[{}] is NOT OK [{}]", df.format(amountTotal), df.format(amountTotalComputed),
-                            theOwner);
+                    LOG.error("Final Total [{}]<>[{}] is NOT OK [{}] - [{}]", df.format(amountTotal), df.format(amountTotalComputed),
+                            theOwner,bankFile.getFile());
                 }
             }
         }

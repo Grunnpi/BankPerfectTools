@@ -89,6 +89,17 @@ public class Bankperfect
                         }
                     }
                 }
+                if ( "--debug=force".equals(arg) ) {
+                    Resource log4jResource = new ClassPathResource("log4j.debug.xml");
+                    try
+                    {
+                        DOMConfigurator.configure(log4jResource.getURL());
+                    }
+                    catch (Exception e)
+                    {
+                        LOG.error("Something wrong append with log4j configuration, please check", e);
+                    }
+                }
             }
         }
 
@@ -191,7 +202,7 @@ public class Bankperfect
                 addParser(KEY_RECURRENT, new RecurrentParser());
                 addParser(KEY_IMMO, new ImmoParser());
                 addParser(KEY_CREDITCARD, new CreditCardParser());
-                addParser(KEY_SALARY, new SalaryParser());
+//                addParser(KEY_SALARY, new SalaryParser());
 
                 // fetch out list of files per preparators
                 List<String> responsesList = new ArrayList<>();
