@@ -26,7 +26,7 @@ public class SalaryParser extends AbstractParser implements IStatementPreparator
     private static final String AVENTAGE_EN_NATURE2 = "Complementary Health Ins.";
 
 
-    private static boolean addAllPayroll = false;
+    private static final boolean addAllPayroll = false;
 
     public List<Statement> prepare(BankFile bankFile, List<String> lines, Map<String, String> mapping,
             final String accountSignature)

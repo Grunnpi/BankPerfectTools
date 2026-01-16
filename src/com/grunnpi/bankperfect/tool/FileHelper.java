@@ -35,7 +35,7 @@ public class FileHelper
     private static final String CSV_C_TIER = "tier";
     private static final String CSV_C_DESCRIPTION = "description";
     private static final String CSV_C_AMOUNT = "amount";
-    private static String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_TIER,
+    private static final String[] CSV_HEADERS = { CSV_C_FILE, CSV_C_BANK, CSV_C_BRANCH, CSV_C_ACCOUNT, CSV_C_DATE, CSV_C_TIER,
             CSV_C_DESCRIPTION, CSV_C_AMOUNT };
 
     public static Map<String, String> readFileMap(File file)
@@ -230,7 +230,7 @@ public class FileHelper
             tempFilename = fileConvert(filename, "windows-1252", "UTF8");
         }
 
-        Reader in = new InputStreamReader(new FileInputStream(tempFilename), Charset.forName("UTF8"));
+        Reader in = new InputStreamReader(new FileInputStream(tempFilename), StandardCharsets.UTF_8);
         //Reader in = new FileReader(getCsvCacheFilename());
         Iterable<CSVRecord> records = CSVFormat.DEFAULT.withHeader(CSV_HEADERS).withFirstRecordAsHeader()
                 .withIgnoreEmptyLines().parse(in);

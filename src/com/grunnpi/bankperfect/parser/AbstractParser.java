@@ -177,6 +177,7 @@ public abstract class AbstractParser implements IStatementPreparator
         Collection<File> files = FileUtils.listFiles(this.getDirectoryToFetch(), this.getFileExtention(), false);
         for (File file : files)
         {
+            LOG.info("File {}",file.toString());
             BankFile bankFile = new BankFile();
             bankFile.setFile(file);
             listBankFiles.add(bankFile);
