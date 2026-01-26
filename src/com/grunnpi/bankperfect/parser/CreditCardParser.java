@@ -40,7 +40,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                 else if (StringUtils.startsWith(line,"Relevé de carte(s) au "))
                 {
                     releveDate = line.replace("Relevé de carte(s) au ", "");
-                    LOG.info("Relevé de carte(s) au [{}]", releveDate);
+                    LOG.info("Relevé de carte(s) au [{}] fichier [{}]", releveDate, bankFile.getFile());
                 }
                 else if (line.startsWith(TOTAL_DES_MOUVEMENTS))
                 {
@@ -92,7 +92,7 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
 
                     couldBeAmount = couldBeAmount.replace(".", "");
                     couldBeAmount = couldBeAmount.replace(",", ".");
-                    //LOG.debug("Could be amount [{}]",couldBeAmount);
+                    //LOG.debug(">> Could be amount [{}]",couldBeAmount);
                     if (StringUtils.isEmpty(couldBeAmount))
                     {
 
@@ -109,8 +109,15 @@ public class CreditCardParser extends AbstractParser implements IStatementPrepar
                             if (StringUtils.isEmpty(couldBeAmount)) {
                                 LOG.error("No amount [{}] on line [{}]", couldBeAmount, fullLine);
                             }  else {
-                                amount = Double.parseDouble(couldBeAmount);
-                                description = StringUtils.substring(line.trim(), 0, StringUtils.lastIndexOf(line.trim(), " ")).trim();
+                                LOG.debug(">4> Could be amount [{}]",couldBeAmount);
+                                try{
+                                    amount = Double.parseDouble(couldBeAmount);
+                                    description = StringUtils.substring(line.trim(), 0, StringUtils.lastIndexOf(line.trim(), " ")).trim();
+                                }catch (Exception e) {
+                                    amount = 0;
+                                    description = StringUtils.substring(line.trim(), 0, StringUtils.lastIndexOf(line.trim(), " ")).trim();
+                                    LOG.error("No cast amount [{}] on line [{}] desc[{}] e[{}]", couldBeAmount, fullLine, description, e.getMessage());
+                                }
                             }
                         }
                         else

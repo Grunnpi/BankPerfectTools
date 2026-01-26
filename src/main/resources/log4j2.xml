@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+	<Appenders>
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%d [%t] [%-5level] (%F:%L) - %msg%n"/>
+		</Console>
+	</Appenders>
+
+	<Loggers>
+		<!-- Loggers spécifiques en WARN pour réduire le bruit -->
+		<Logger name="org.apache.fontbox.ttf" level="warn" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+		<Logger name="org.apache.commons.beanutils.converters" level="warn" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+		<Logger name="org.apache.pdfbox.pdmodel.font" level="warn" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+		<Logger name="org.apache.fontbox.util.autodetect" level="warn" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+		<Logger name="org.apache.pdfbox.io" level="warn" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+
+		<!-- Ton package en DEBUG -->
+		<Logger name="com.grunnpi.bankperfect" level="debug" additivity="false">
+			<AppenderRef ref="Console"/>
+		</Logger>
+
+		<!-- Root logger -->
+		<Root level="debug">
+			<AppenderRef ref="Console"/>
+		</Root>
+	</Loggers>
+</Configuration>
