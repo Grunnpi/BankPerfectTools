@@ -130,8 +130,7 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                                 final String statementDay = theDateTraitement.substring(0, 2);
 
                                 targetFilename =
-                                        statementYear + "-" + statementMonth + "-" + statementDay + "-#THE_BIEN#-" + bankFile
-                                                .getFile().getName();
+                                        statementYear + "-" + statementMonth + "-" + statementDay + "-#THE_BIEN#-Décompte n°" + theDecompte + ".pdf"; //+ bankFile.getFile().getName();
                             }
 
                             bankFile.setToMoveToArchive(true);
@@ -143,6 +142,10 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                             LOG.info(">> skip this line [{}]", line);
                         }
                     }
+                }
+                else if (line.trim().equals("L"))
+                {
+                    // ERROR
                 }
                 else if (StringUtils.isEmpty(line.trim()))
                 {
@@ -190,10 +193,15 @@ public class ImmoParser extends AbstractParser implements IStatementPreparator
                 else if (line.contains("rue Beethoven, "))
                 {
                     theTypeLot = line.replace("Lot 36 rue Beethoven, ", "");
+                    theTypeLot = theTypeLot.replace("ot 36 rue Beethoven, ", "");
+                    theTypeLot = theTypeLot.replace("LLocal commercial", "Local commercial");
+                    theTypeLot = theTypeLot.replace("LGarage", "Garage");
 
                     if (theTypeLot.contains("Appartement Type 3"))
                     {
                         theTypeLot = "Appartement";
+                        LOG.debug("typeLot[{}] fetch from line [{}]", theTypeLot, fullLine);
+                    } else {
                         LOG.debug("typeLot[{}] fetch from line [{}]", theTypeLot, fullLine);
                     }
                     theSignePositive = true;

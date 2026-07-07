@@ -47,7 +47,6 @@ public class Bankperfect {
 
 
     public static void main(String[] args) throws IOException, TemplateException, GeneralSecurityException {
-        LOG.info("Hello world");
         Bankperfect bankperfect = new Bankperfect();
 
 //        for (String arg : args) {

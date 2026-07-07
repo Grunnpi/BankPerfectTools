@@ -1,37 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
-	<Appenders>
-		<Console name="Console" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d [%t] [%-5level] (%F:%L) - %msg%n"/>
-		</Console>
-	</Appenders>
 
-	<Loggers>
-		<!-- Loggers spécifiques en WARN pour réduire le bruit -->
-		<Logger name="org.apache.fontbox.ttf" level="warn" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
-		<Logger name="org.apache.commons.beanutils.converters" level="warn" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
-		<Logger name="org.apache.pdfbox.pdmodel.font" level="warn" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
-		<Logger name="org.apache.fontbox.util.autodetect" level="warn" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
-		<Logger name="org.apache.pdfbox.io" level="warn" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
+    <Appenders>
+        <Console name="stdoutStandard" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{%d [%t] [%-5p] (%F:%L) - %m%n}{FATAL=red blink, ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan, TRACE=blue}" disableAnsi="false"/>
+        </Console>
+    </Appenders>
 
-		<!-- Ton package en DEBUG -->
-		<Logger name="com.grunnpi.bankperfect" level="debug" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
+    <Loggers>
+        <Logger name="org.apache.fontbox.ttf" level="WARN" additivity="false">
+            <AppenderRef ref="stdoutStandard"/>
+        </Logger>
+        <Logger name="org.apache.commons.beanutils.converters" level="WARN" additivity="false">
+            <AppenderRef ref="stdoutStandard"/>
+        </Logger>
+        <Logger name="org.apache.pdfbox.pdmodel.font" level="WARN" additivity="false">
+            <AppenderRef ref="stdoutStandard"/>
+        </Logger>
+        <Logger name="org.apache.fontbox.util.autodetect" level="WARN" additivity="false">
+            <AppenderRef ref="stdoutStandard"/>
+        </Logger>
+        <Logger name="org.apache.pdfbox.io" level="WARN" additivity="false">
+            <AppenderRef ref="stdoutStandard"/>
+        </Logger>
 
-		<!-- Root logger -->
-		<Root level="debug">
-			<AppenderRef ref="Console"/>
-		</Root>
-	</Loggers>
+        <Root level="DEBUG">
+            <AppenderRef ref="stdoutStandard"/>
+        </Root>
+    </Loggers>
+
 </Configuration>
