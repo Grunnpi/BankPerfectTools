@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script>
+    function submitForm() {
+      google.script.run.withSuccessHandler(google.script.host.close).appendRowFromFormSubmit(document.getElementById("myDropdown").value);
+      document.getElementById("form").style.display = "none";
+      document.getElementById("thanks").style.display = "block";
+    }
+  </script>
+</head>
+<body>
+  <div>
+  <div id="form">
+  <h1>Choisir compte cible</h1>
+  <form id="feedbackForm">
+    <!--
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name"><br><br>
+    <label for="feedback">Feedback</label>
+    <input type="text" id="feedback" name="feedback"><br><br>
+    -->
+    <div>
+      <!--
+      <label for="rating">Are you satisfied?</label><br>
+      <input type="radio" id="yes" name="rating" value="Yes">
+      <label for="yes">Yes</label><br>
+      <input type="radio" id="no" name="rating" value="No">
+      <label for="no">No</label><br><br>
+      -->
+
+      <select id="myDropdown">
+        <option value="Import">Import</option>
+        <option value="Logs">Logs</option>
+        <? var liste_comptes = SpreadsheetApp.getActive().getSheetByName("Comptes").getRange("A2:A").getValues().filter(function(oneRow){ return oneRow[0] !== "" }) ?>
+        <? liste_comptes.forEach(e => { ?>
+          <option value="<?= e ?>"><?= e ?></option>
+        <? }); ?>
+      </select>
+
+      <input type="button" value="Execution !" onclick="submitForm();">
+  </form>
+  </div>
+  </div>
+  <div id="thanks" style="display: none;">
+    <p>Merci !</p>
+  </div>
+</body>
+</html>

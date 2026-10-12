@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    Choisir un fichier "output.csv"
+    <input id="fileInput" type="file" />
+    <button id="uploadButton" onclick="uploadFileHtml()">Upload</button>
+
+    <script>
+
+      function onSuccess(data){
+        google.script.run.withSuccessHandler(google.script.host.close).displayChoice("paf le chien");
+        google.script.run.importFile();
+      }
+      function onFailure(err){
+        alert("Exception " + err );
+      }
+
+      function uploadFileHtml(){
+        document.body.style.cursor = "wait";
+        document.getElementById('uploadButton').style.cursor='wait';
+        document.getElementById('fileInput').style.cursor='wait';
+        let element = document.getElementById("fileInput");
+        let file = element.files[0];
+        let name = file.name;
+        // Convert the file to base64
+        getBase64(file,name);
+      }
+
+      function getBase64(file, fileName) {
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function () {
+          // The replace function assumes this as excel sheet. Of course a cleaner method would be using regex in case of other types
+          let baseFile = reader.result.replace("data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,","");
+          baseFile = baseFile.replace("data:application/octet-stream;base64,","");          
+          baseFile = baseFile.replace("data:application/vnd.ms-excel.sheet.macroEnabled.12;base64,","");
+          baseFile = baseFile.replace("data:text/csv;base64,","");
+          
+          //google.script.run.log_info(baseFile)
+          
+          // pass the base 64 to the server
+          google.script.run
+              .withSuccessHandler(onSuccess)
+              .withFailureHandler(onFailure)
+              .uploadFile(baseFile, fileName,"output")
+        };
+      }
+    </script>
+  </body>
+</html>
