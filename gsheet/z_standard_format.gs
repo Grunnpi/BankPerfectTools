@@ -16,6 +16,7 @@ function getCategoryMap() {
     return JSON.parse(cached);
   }
 
+  console.warn("cache categories : MISS -> relecture de l'onglet Categories");
   const catSheet = SpreadsheetApp.getActive().getSheetByName("Categories");
   if (!catSheet) {
     throw new Error("Sheet 'Categories' not found.");
@@ -50,6 +51,7 @@ function onEdit(e) {
     throw new Error('Please do not run the script in the script editor window.');
   }
 
+  const t0 = Date.now(); // mesure de durée (visible dans Exécutions > Journal)
   const range = e.range;
   const sheet = range.getSheet();
   const sheetName = sheet.getName();
@@ -98,7 +100,9 @@ function onEdit(e) {
   });
 
   // 1 seul appel pour toutes les lignes
+  const tSet = Date.now();
   sheet.getRange(firstRow, 6, nbRows, 1).setDataValidations(rules);
+  console.log("onEdit [" + sheetName + "] " + nbRows + " ligne(s) : total=" + (Date.now() - t0) + "ms dont setDataValidations=" + (Date.now() - tSet) + "ms");
 }
 
 // Fonction de formatage standard (peut être lancée manuellement)
