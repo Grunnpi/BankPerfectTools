@@ -118,64 +118,77 @@ function _applyRuleToSheet(currentSheet, row_line, the_rule) {
 function flushRuleBatch(currentSheet, batchBuffer, allSheetValues) {
   if (batchBuffer.length === 0) return;
 
-  // On travaille sur une copie du tableau 2D existant
   // allSheetValues : résultat de getDataRange().getValues() (0-based)
-  batchBuffer.forEach(({ row_line, the_rule }) => {
-    const idx = row_line - 1; // convertit en index 0-based
+  // On n'écrit QUE les colonnes C, E:F et H, sur la plage de lignes touchée :
+  // les autres colonnes (formules incluses) ne sont jamais réécrites.
+  const lines = batchBuffer.map(b => b.row_line);
+  const first = Math.min.apply(null, lines);
+  const last = Math.max.apply(null, lines);
+  const n = last - first + 1;
 
-    // Colonne C (index 2) : tier
-    if (the_rule[IDX_RULE_LOGIQUE_TIER] === "fait_rien") {
-      // rien
-    } else if (the_rule[IDX_RULE_LOGIQUE_TIER] === "si_vide") {
-      if (allSheetValues[idx][2] === "") {
-        allSheetValues[idx][2] = the_rule[IDX_RULE_TIER];
-      }
-    } else {
-      allSheetValues[idx][2] = the_rule[IDX_RULE_TIER];
+  const colC = [], colEF = [], colH = [];
+  for (let r = first; r <= last; r++) {
+    const v = allSheetValues[r - 1];
+    colC.push([v[2]]);
+    colEF.push([v[4], v[5]]);
+    colH.push([v[7]]);
+  }
+
+  batchBuffer.forEach(({ row_line, the_rule }) => {
+    const idx = row_line - first;
+    const logic = the_rule[IDX_RULE_LOGIQUE_TIER];
+
+    // Colonne C : tier
+    if (logic === "si_vide") {
+      if (colC[idx][0] === "") colC[idx][0] = the_rule[IDX_RULE_TIER];
+    } else if (logic !== "fait_rien") {
+      colC[idx][0] = the_rule[IDX_RULE_TIER];
     }
 
-    allSheetValues[idx][4] = the_rule[IDX_RULE_CATEGORIE_VAL];     // E
-    allSheetValues[idx][5] = the_rule[IDX_RULE_CATEGORIE_SOUS_VAL]; // F
-    allSheetValues[idx][7] = "-";                                    // H
+    colEF[idx] = [the_rule[IDX_RULE_CATEGORIE_VAL], the_rule[IDX_RULE_CATEGORIE_SOUS_VAL]]; // E, F
+    colH[idx] = ["-"];                                                                      // H
   });
 
-  // Un seul setValues pour tout réécrire
-  currentSheet
-    .getRange(1, 1, allSheetValues.length, allSheetValues[0].length)
-    .setValues(allSheetValues);
+  currentSheet.getRange(first, 3, n, 1).setValues(colC);
+  currentSheet.getRange(first, 5, n, 2).setValues(colEF);
+  currentSheet.getRange(first, 8, n, 1).setValues(colH);
 }
 
 // ─── autoCategory optimisée ────────────────────────────────────────────────
 
 function autoCategory() {
-  log_debug("AutoCategory - début batch");
+  try {
+    log_debug("AutoCategory - début batch");
 
-  var currentSheet = SpreadsheetApp.getActiveSheet();
+    var currentSheet = SpreadsheetApp.getActiveSheet();
 
-  // 1 lecture
-  var allValues = currentSheet.getDataRange().getValues();
-  var rulesValues = getRulesValues();
+    // 1 lecture
+    var allValues = currentSheet.getDataRange().getValues();
+    var rulesValues = getRulesValues();
 
-  var batchBuffer = [];
-  var nbAutoMatchLines = 0;
+    var batchBuffer = [];
+    var nbAutoMatchLines = 0;
 
-  for (let i = 1; i < allValues.length; i++) {
-    const row = allValues[i];
-    if (row[7] !== "N") continue;
+    for (let i = 1; i < allValues.length; i++) {
+      const row = allValues[i];
+      if (row[7] !== "N") continue;
 
-    for (let r = 1; r < rulesValues.length; r++) {
-      if (isRowMatchRule(row, rulesValues[r])) {
-        assignRuleToRow(null, i + 1, rulesValues[r], batchBuffer);
-        nbAutoMatchLines++;
-        break;
+      for (let r = 1; r < rulesValues.length; r++) {
+        if (isRowMatchRule(row, rulesValues[r])) {
+          assignRuleToRow(null, i + 1, rulesValues[r], batchBuffer);
+          nbAutoMatchLines++;
+          break;
+        }
       }
     }
+
+    log_debug(" Lignes matchées [" + nbAutoMatchLines + "]");
+
+    // 1 écriture pour tout
+    flushRuleBatch(currentSheet, batchBuffer, allValues);
+
+    log_debug(" AutoCategory terminée");
+  } finally {
+    flushLogs();
   }
-
-  log_debug(" Lignes matchées [" + nbAutoMatchLines + "]");
-
-  // 1 écriture pour tout
-  flushRuleBatch(currentSheet, batchBuffer, allValues);
-
-  log_debug(" AutoCategory terminée");
 }

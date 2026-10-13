@@ -1,42 +1,47 @@
-const CACHE_KEY_CATEGORIES = 'categories_data';
-const CACHE_EXPIRATION_SECONDS = 3000; // 50 minutes (3000 secondes)
+const CACHE_KEY_CATEGORIES = 'categories_map_v2';
+const CACHE_EXPIRATION_SECONDS = 21600; // 6 h, invalidé dès qu'on édite l'onglet "Categories"
 
-// Note: Assurez-vous que la constante TECHNICAL_SHEETS est définie ailleurs si elle est utilisée.
-// ex: const TECHNICAL_SHEETS = ['FeuilleTechnique', 'AutreFeuille'];
+// Note: TECHNICAL_SHEETS est définie dans a_main.gs
 
 /**
- * Lit les données de la feuille "Categories" en utilisant le cache si possible.
+ * Retourne la map { catégorie: [sous-catégories] } construite depuis l'onglet "Categories"
+ * (colonne B = catégorie, colonne C = sous-catégorie), avec cache.
  *
- * @returns {Array<Array<any>>} Les valeurs de la feuille "Categories".
+ * @returns {Object<string, string[]>}
  */
-function getCategoryDataFromCache() {
+function getCategoryMap() {
   const cache = CacheService.getScriptCache();
-  const cachedData = cache.get(CACHE_KEY_CATEGORIES);
-
-  if (cachedData) {
-    // Les données sont dans le cache (JSON.parse est rapide)
-    return JSON.parse(cachedData);
+  const cached = cache.get(CACHE_KEY_CATEGORIES);
+  if (cached) {
+    return JSON.parse(cached);
   }
 
-  // Si non trouvé dans le cache, lire depuis la feuille
-  const ss = SpreadsheetApp.getActive();
-  const catSheet = ss.getSheetByName("Categories");
-
+  const catSheet = SpreadsheetApp.getActive().getSheetByName("Categories");
   if (!catSheet) {
     throw new Error("Sheet 'Categories' not found.");
   }
-  
-  // Lecture coûteuse
+
   const values = catSheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < values.length; i++) { // ignore l'entête
+    const cat = values[i][1];
+    const sub = values[i][2];
+    if (cat === "" || sub === "") continue;
+    (map[cat] = map[cat] || []).push(String(sub));
+  }
 
-  // Stockage dans le cache pour les futures exécutions (JSON.stringify est rapide)
-  cache.put(CACHE_KEY_CATEGORIES, JSON.stringify(values), CACHE_EXPIRATION_SECONDS);
-
-  return values;
+  try {
+    cache.put(CACHE_KEY_CATEGORIES, JSON.stringify(map), CACHE_EXPIRATION_SECONDS);
+  } catch (err) {
+    // ex: valeur > 100 Ko : on continue sans cache plutôt que de casser la validation
+    console.warn("cache categories non stocké : " + err.message);
+  }
+  return map;
 }
 
 /**
  * Crée une validation de données dans la colonne F en fonction de la valeur entrée en colonne E.
+ * Gère aussi les collages multi-lignes.
  * @param {GoogleAppsScript.Events.SheetsOnEdit} e
  */
 function onEdit(e) {
@@ -47,87 +52,53 @@ function onEdit(e) {
 
   const range = e.range;
   const sheet = range.getSheet();
-  const column = range.getColumn();
-  const row = range.getRow();
-  
-  // Sortir tôt si ce n'est pas la colonne E (colonne 5)
-  if (column !== 5) {
-    return;
-  }
-  
   const sheetName = sheet.getName();
 
-  // Gérer l'ignorance des feuilles techniques (si la constante existe)
-  if (typeof TECHNICAL_SHEETS !== 'undefined' && TECHNICAL_SHEETS.includes(sheetName)) {
-    console.log("ignore sheet " + sheetName);
+  // Modification des catégories -> on invalide le cache
+  if (sheetName === "Categories") {
+    CacheService.getScriptCache().remove(CACHE_KEY_CATEGORIES);
     return;
   }
-  
-  const targetCell = sheet.getRange(row, 6); // Cellule cible dans la colonne F (6)
-  
-  // Traitement de l'effacement
-  if (e.value === undefined) {
-    targetCell.clearDataValidations();
+
+  // L'édition doit toucher la colonne E (5)
+  if (range.getColumn() > 5 || range.getLastColumn() < 5) {
     return;
   }
-  
-  // === Appel optimisé avec cache pour les valeurs ===
+
+  if (TECHNICAL_SHEETS.includes(sheetName)) {
+    return;
+  }
+
+  const firstRow = Math.max(range.getRow(), 2); // ignore l'entête
+  const lastRow = range.getLastRow();
+  if (lastRow < firstRow) {
+    return;
+  }
+  const nbRows = lastRow - firstRow + 1;
+
+  // Valeurs de E : e.value pour une cellule, lecture groupée pour un collage / une suppression de plage
+  const editedValues = (nbRows === 1 && range.getNumColumns() === 1 && e.value !== undefined)
+    ? [e.value]
+    : sheet.getRange(firstRow, 5, nbRows, 1).getValues().map(r => r[0]);
+
+  let map;
   try {
-    const values = getCategoryDataFromCache();
-    // ===============================================
-
-    const editedValue = range.getValue();
-
-    let startIndex = -1;
-    let endIndex = -1;
-    let foundStart = false; // Pour marquer le début de la plage
-
-    // Recherche de la plage de catégories dans le tableau en mémoire
-    // On commence à l'index 1 (ligne 2) pour ignorer l'entête
-    for (let i = 1; i < values.length; i++) {
-      // La colonne B est l'index 1 dans le tableau JavaScript (base zéro)
-      const categoryValue = values[i][1]; 
-      
-      if (categoryValue === editedValue) {
-        if (!foundStart) {
-          startIndex = i + 1; // Le numéro de ligne est l'index + 1
-          foundStart = true;
-        }
-        endIndex = i + 1; // Toujours mettre à jour le dernier élément
-      } else {
-        if (foundStart) {
-          break; // Sortie anticipée : la plage s'est terminée
-        }
-      }
-    }
-
-    if (startIndex > 0) {
-      // **Optimisation Mineure** : Récupérer la feuille de calcul active et la feuille "Categories" une seule fois.
-      const ss = SpreadsheetApp.getActive();
-      const catSheet = ss.getSheetByName("Categories"); 
-      
-      if (!catSheet) {
-        throw new Error("Sheet 'Categories' not found during validation creation.");
-      }
-      
-      // Construire la plage A1 pour la colonne C (Index 2)
-      const categoryRangeA1 = 'C' + startIndex + ':C' + endIndex; 
-      
-      // **Appel au service coûteux mais nécessaire pour la validation de données par plage**
-      const validationRange = catSheet.getRange(categoryRangeA1);
-      
-      const rule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
-      targetCell.setDataValidation(rule);
-      
-    } else {
-      // Si aucune catégorie n'est trouvée pour la valeur entrée
-      targetCell.clearDataValidations();
-    }
-  } catch(error) {
+    map = getCategoryMap();
+  } catch (error) {
     console.error(error.message);
-    // Optionnel : Effacer la validation pour éviter une erreur visible à l'utilisateur
-    targetCell.clearDataValidations();
+    return;
   }
+
+  const rules = editedValues.map(v => {
+    const list = map[v];
+    if (list && list.length) {
+      return [SpreadsheetApp.newDataValidation().requireValueInList(list, true).setAllowInvalid(false).build()];
+    }
+    return [null]; // null = efface la validation
+  });
+
+  // 1 seul appel pour toutes les lignes
+  sheet.getRange(firstRow, 6, nbRows, 1).setDataValidations(rules);
 }
 
 // Fonction de formatage standard (peut être lancée manuellement)

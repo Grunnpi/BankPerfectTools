@@ -1,3 +1,5 @@
+const IMPORT_FOLDER_ID = "1Qn8LXy6b12xIslJGoFd7DbTfovWPipVp";
+
 function uploadFile(uploadedFile, fileName, accountType)
 {
   try{
@@ -15,7 +17,7 @@ function uploadFile(uploadedFile, fileName, accountType)
     }
     
     // Use this to save the file as excel
-    let folder = DriveApp.getFolderById("1Qn8LXy6b12xIslJGoFd7DbTfovWPipVp");
+    const folder = DriveApp.getFolderById(IMPORT_FOLDER_ID);
     const csvFile = folder.createFile(blob); 
 
     const today = new Date();
@@ -28,12 +30,9 @@ function uploadFile(uploadedFile, fileName, accountType)
     if ( fileName.endsWith(".csv")) {
       log_info("csv : on tente un cast supplémentaire du fichier [" + fileName + "]")
 
-      // Spécifiez le séparateur (par exemple, ";" pour des CSV français)
-      //const separator = ",";
-
+      // Si les accents sont cassés (CSV Windows-1252), utiliser getDataAsString("windows-1252")
       const csvContent = csvFile.getBlob().getDataAsString(); // Contenu du fichier CSV
 
-     
       const lines = csvContent.split("\n");
 
       // Choisir la ligne pour la détection : 6 si disponible, sinon 2, sinon 1
@@ -51,30 +50,33 @@ function uploadFile(uploadedFile, fileName, accountType)
       const countSemicolon = (detectionLine.match(/;/g) || []).length;
       const separator = countSemicolon > countComma ? ";" : ",";
 
-      
       log_info("csv : detection auto du séparateur [" + separator + "]")
 
+      // Parsing CSV (gère les guillemets et les séparateurs dans les champs)
+      let rows;
+      try {
+        rows = Utilities.parseCsv(csvContent, separator);
+      } catch (parseErr) {
+        log_warn("parseCsv a échoué [" + parseErr.message + "] : fallback split")
+        rows = csvContent.split(/\r?\n/).map(line => line.split(separator).map(cell => cell.replace(/^"|"$/g, '')));
+      }
 
-      // Découper le fichier en lignes
-      const rows = csvContent.split("\n").map(line => line.split(separator));
       // Créer un fichier Google Sheet
       const spreadsheet = SpreadsheetApp.create(sheetName);
       const sheet = spreadsheet.getActiveSheet();
       sheet.setName("ConversionTabCSV")
-      
 
-      // Supprimer les guillemets des colonnes de type chaîne de caractères
-      const cleanedRows = rows.map(row => row.map(cell => cell.replace(/^"|"$/g, '')));
-      
-      cleanedRows.forEach((row, index) => {
-        sheet.getRange(index + 1, 1, 1, row.length).setValues([row]);
-      });
+      // Rendre le tableau rectangulaire puis 1 seule écriture
+      if (rows.length > 0) {
+        const width = Math.max.apply(null, rows.map(r => r.length));
+        if (width > 0) {
+          const padded = rows.map(r => r.concat(new Array(width - r.length).fill("")));
+          sheet.getRange(1, 1, padded.length, width).setValues(padded);
+        }
+      }
 
       // Déplacer le fichier dans le dossier cible
-      const folder = DriveApp.getFolderById("1Qn8LXy6b12xIslJGoFd7DbTfovWPipVp"); // Accéder au dossier
-      const file = DriveApp.getFileById(spreadsheet.getId()); // Obtenir le fichier créé
-      const newFile = folder.addFile(file); // Ajouter le fichier au dossier
-      DriveApp.getRootFolder().removeFile(file); // Supprimer le fichier du dossier racine
+      DriveApp.getFileById(spreadsheet.getId()).moveTo(folder);
 
       imported_file_id = spreadsheet.getId()
       log_info("conversion par code et move du fichier [" + sheetName + "]")
@@ -85,7 +87,7 @@ function uploadFile(uploadedFile, fileName, accountType)
       log_info("import et conversion auto du fichier [" + sheetName + "]")
 
       // Enable the advanced Drive Service to use this function that converts the excel  file to a Google Sheets file
-      let imported_file = Drive.Files.insert({title:sheetName, mimeType: MimeType.GOOGLE_SHEETS, parents: [{ id: "1Qn8LXy6b12xIslJGoFd7DbTfovWPipVp" }] }, blob, {convert: true, supportsAllDrives: true});
+      let imported_file = Drive.Files.insert({title:sheetName, mimeType: MimeType.GOOGLE_SHEETS, parents: [{ id: IMPORT_FOLDER_ID }] }, blob, {convert: true, supportsAllDrives: true});
       imported_file_id = imported_file.id
     }
 
@@ -100,6 +102,8 @@ function uploadFile(uploadedFile, fileName, accountType)
   {
     Logger.log(ex);
     throw ex;
+  } finally {
+    flushLogs();
   }
 }
 
@@ -109,41 +113,62 @@ function displayChoice(choice) {
 }
 
 function importFile() {
-  var cache = CacheService.getScriptCache();
-  const imported_id = cache.get("gsheet_imported_id")
-  const accountType = cache.get("accountType")
+  try {
+    var cache = CacheService.getScriptCache();
+    const imported_id = cache.get("gsheet_imported_id")
+    const accountType = cache.get("accountType")
 
-  if ( imported_id != "" && accountType != "" ) {
-    cache.put("gsheet_imported_id","")
-    cache.put("accountType","")
+    // cache.get renvoie null si la clé est absente/expirée : on teste la valeur, pas != ""
+    if ( imported_id && accountType ) {
+      cache.remove("gsheet_imported_id")
+      cache.remove("accountType")
 
-    var spreadsheet_imported = SpreadsheetApp.openById(imported_id)
-    var sheet = spreadsheet_imported.getSheets()[0]
-    //displayToastAlert("Sheet cible [" + sheet.getName() + "]")
-    log_debug("importFile> sheet[0].name=[" + sheet.getName() + "]")
-  
-    switch (accountType) {
-      case "CreditMutuel":
-        importCreditMutuel(spreadsheet_imported) // multiple tab = multiple account
-        break
-      case "BIL":
-        importBIL(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
-        break
-      case "BOURSORAMA":
-        importBOURSORAMA(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
-        break
-      case "output":
-        importOUTPUT(spreadsheet_imported.getSheets()[0]) // 1 tab for multiple account
-        break
-      default:
-        break;
+      var spreadsheet_imported = SpreadsheetApp.openById(imported_id)
+      var sheet = spreadsheet_imported.getSheets()[0]
+      //displayToastAlert("Sheet cible [" + sheet.getName() + "]")
+      log_debug("importFile> sheet[0].name=[" + sheet.getName() + "]")
+    
+      switch (accountType) {
+        case "CreditMutuel":
+          importCreditMutuel(spreadsheet_imported) // multiple tab = multiple account
+          break
+        case "BIL":
+          importBIL(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
+          break
+        case "BOURSORAMA":
+          importBOURSORAMA(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
+          break
+        case "output":
+          importOUTPUT(spreadsheet_imported.getSheets()[0]) // 1 tab for multiple account
+          break
+        default:
+          break;
+      }
+      log_info("importation finie [" + spreadsheet_imported.getName() + "]")
+    } else {
+      log_warn("Rien a importer ou déjà en cours - stop")
     }
-    log_info("importation finie [" + spreadsheet_imported.getName() + "]")
-  } else {
-    log_warn("Rien a importer ou déjà en cours - stop")
+  } finally {
+    flushLogs();
   }
 }
 
+/**
+ * Convertit un montant (nombre ou texte) en float.
+ * Gère "1 234,56", "1.234,56", "1,234.56", "12.5", "12,5", "-12,50 €".
+ */
+function parseAmount(v) {
+  if (typeof v === "number") return v;
+  let s = String(v).replace(/[^\d,.\-]/g, "");
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma > lastDot) {
+    s = s.replace(/\./g, "").replace(",", ".");   // 1.234,56 -> 1234.56
+  } else {
+    s = s.replace(/,/g, "");                        // 1,234.56 -> 1234.56
+  }
+  return parseFloat(s);
+}
 
 function addAccountRow(account_rows,row_date,row_mode,row_tier,row_label,row_category,row_sub_catetory,row_amount,row_status) {
   if ( row_status == "" ) {
@@ -153,13 +178,7 @@ function addAccountRow(account_rows,row_date,row_mode,row_tier,row_label,row_cat
     row_mode = "=sheetName()" // should copy paste value then
   }
 
-  if ( typeof(row_amount) == "string" && row_amount.indexOf(".") >= 0 ) {
-    row_amount = row_amount.replace(".", ",")
-  }
-  if ( typeof(row_amount) == "string" && row_amount.indexOf(",") >= 0 ) {
-    row_amount = row_amount.replace(",", ".")
-  }
-  row_amount_float = parseFloat(row_amount)
+  const row_amount_float = parseAmount(row_amount)
 
   account_rows.push( [ row_date,row_mode,row_tier,row_label,row_category,row_sub_catetory,row_amount_float,row_status ] )
   return account_rows
@@ -172,21 +191,30 @@ function importRowsToSheet(account_rows, targetSheetName, focus_after_insert, au
   const existingValues = targetSheet.getDataRange().getValues();
   var rulesValues = automatch_on_import ? getRulesValues() : null;
 
-  // 2. Dédoublonnage en mémoire
+  // 2. Dédoublonnage en mémoire (multiset : date + montant en centimes)
+  //    Deux opérations identiques le même jour restent possibles : on ne rejette
+  //    une nouvelle ligne que si le même nombre existe déjà dans la feuille.
+  const tz = Session.getScriptTimeZone();
+  const keyOf = function (d, amount) {
+    return Utilities.formatDate(new Date(d), tz, "yyyy-MM-dd") + "|" + Math.round(Number(amount) * 100);
+  };
+
+  const existingCount = {};
+  for (let i = 1; i < existingValues.length; i++) {
+    const row = existingValues[i];
+    if (!(row[0] instanceof Date)) continue;
+    const k = keyOf(row[0], row[6]);
+    existingCount[k] = (existingCount[k] || 0) + 1;
+  }
+
   const newRows = account_rows.filter(new_row => {
-    const duplicate = existingValues.some(row => {
-      const row_date = new Date(row[0]);
-      row_date.setHours(0, 0, 0, 0);
-      const new_row_date = new_row[0];
-      return (
-        row_date.getFullYear() === new_row_date.getFullYear() &&
-        row_date.getMonth()    === new_row_date.getMonth()    &&
-        row_date.getDay()      === new_row_date.getDay()      &&
-        row[6]                 === new_row[6]
-      );
-    });
-    if (duplicate) log_debug("ignore ligne dupliquée [" + new_row + "] pour [" + targetSheetName + "]");
-    return !duplicate;
+    const k = keyOf(new_row[0], new_row[6]);
+    if (existingCount[k] > 0) {
+      existingCount[k]--;
+      log_debug("ignore ligne dupliquée [" + new_row + "] pour [" + targetSheetName + "]");
+      return false;
+    }
+    return true;
   });
 
   if (newRows.length === 0) {

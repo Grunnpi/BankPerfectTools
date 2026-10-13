@@ -3,12 +3,28 @@ function sheetName() {
   return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
 }
 
+// Mettre à true pour réactiver les logs DEBUG dans l'onglet "Logs"
+const LOG_DEBUG_ENABLED = false;
+
+// Buffer en mémoire : les logs sont écrits en 1 seul appel par flushLogs()
+const _logBuffer = [];
+
 function log(type, message) {
-  var sheetLogs = SpreadsheetApp.getActive().getSheetByName("Logs"); 
+  if (type === "DEBUG" && !LOG_DEBUG_ENABLED) return;
+  _logBuffer.push([new Date(), type, String(message)]);
+}
 
-  var currentDate = new Date();
-
-  sheetLogs.appendRow([currentDate, type, message])
+/**
+ * Écrit tous les logs bufferisés dans l'onglet "Logs" en un seul appel.
+ * À appeler en fin de chaque point d'entrée (try/finally).
+ */
+function flushLogs() {
+  if (_logBuffer.length === 0) return;
+  var sheetLogs = SpreadsheetApp.getActive().getSheetByName("Logs");
+  if (sheetLogs) {
+    sheetLogs.getRange(sheetLogs.getLastRow() + 1, 1, _logBuffer.length, 3).setValues(_logBuffer);
+  }
+  _logBuffer.length = 0;
 }
 
 function clearLogs() {
@@ -33,4 +49,3 @@ function log_error(message) {
 function displayToastAlert(message) {
   SpreadsheetApp.getActive().toast(message, "⚠️ GrunnAlert", 5); 
 }
-
