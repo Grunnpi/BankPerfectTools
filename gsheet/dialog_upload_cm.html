@@ -11,7 +11,7 @@
     <script>
 
       function onSuccess(data){
-        google.script.run.withSuccessHandler(google.script.host.close).displayChoice("paf le chien");
+        google.script.run.withSuccessHandler(google.script.host.close).displayToastAlert("Importation ok !");
         google.script.run.importFile();
       }
       function onFailure(err){

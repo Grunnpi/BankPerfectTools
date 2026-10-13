@@ -9,7 +9,7 @@ function importCreditMutuel(spreadsheet) {
   var importDetail = true
 
   if (importDetail) {
-    for (idx_sheet=1;idx_sheet<allCMSheet.length;idx_sheet++){
+    for (let idx_sheet=1;idx_sheet<allCMSheet.length;idx_sheet++){
       // sheet name
       var sheet = allCMSheet[idx_sheet]
       var sheetName = sheet.getName()
@@ -18,7 +18,7 @@ function importCreditMutuel(spreadsheet) {
       // search for account  
       var foundIt = false
       var skipImport = false
-      for (i=1;i<accountDefinition.length;i++){
+      for (let i=1;i<accountDefinition.length;i++){
         if ( accountDefinition[i][2] == "Crédit Mutuel" ) { // CM & actif
           var sheetNameToSearch = "Cpt " + accountDefinition[i][8] + " " + accountDefinition[i][9]
           if ( sheetNameToSearch == sheetName ) {
@@ -94,7 +94,6 @@ function importCreditMutuel(spreadsheet) {
   
   var rowNumber = 0
   var tableIsOver = false
-  var account_rows = []
   var dateAujourdhui = new Date();
   dataAccountSummary.forEach(function (row) {
     rowNumber++
@@ -105,27 +104,27 @@ function importCreditMutuel(spreadsheet) {
           tableIsOver = true
         } else {
           //log_debug("Row [" + row[1] + "]")
-          sheetName = row[1]
+          var summarySheetName = row[1]
 
           // search account in 
-          fountIt = false
-          for (i=1;i<accountDefinition.length;i++){
+          var foundSummary = false
+          for (let i=1;i<accountDefinition.length;i++){
             if ( accountDefinition[i][2] == "Crédit Mutuel" ) { // CM & actif
               var sheetNameToSearch = accountDefinition[i][7] + " " + accountDefinition[i][8] + " " + accountDefinition[i][9]
-              if ( sheetNameToSearch == sheetName ) {
+              if ( sheetNameToSearch == summarySheetName ) {
                 if ( accountDefinition[i][4] == "oui") {
                   targetSheet.getRange("N" + (i + 1)).setValue(row[2]) // solde
                   targetSheet.getRange("Q" + (i + 1)).setValue(dateAujourdhui) // date de maj
                 } else {
-                  log_warn("Compte résumé [" + accountDefinition[i][0] + "] pour [" + sheetName + "] non actif dans setup ! skip")
+                  log_warn("Compte résumé [" + accountDefinition[i][0] + "] pour [" + summarySheetName + "] non actif dans setup ! skip")
                 }
-                fountIt = true
+                foundSummary = true
                 break
               }
             } 
           }
-          if ( !fountIt){
-            log_warn("Pas de compte résumé pour [" + sheetName + "] WTF ?! ")
+          if ( !foundSummary){
+            log_warn("Pas de compte résumé pour [" + summarySheetName + "] WTF ?! ")
           }
         }
       }

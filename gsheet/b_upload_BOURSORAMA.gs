@@ -15,16 +15,14 @@ function importBOURSORAMA(sheet) {
           tableIsOver = true
         } else {
           var new_date = row[0]
+          if ( !(new_date instanceof Date) ) {
+            log_error("ligne ignorée ligne " + rowNumber + " : [" + new_date + "] pas une date : " + row)
+            return
+          }
           new_date.setHours(0,0,0,0)
 
-          var new_amount = row[6]
-          
-          if ( new_amount instanceof String && new_amount.indexOf(".") >= 0 ) {
-            new_amount = new_amount.replace(".", ",")
-          }
-          //log_info("new_amount = " + new_amount)
-          
-          addAccountRow(account_rows,new_date,"Boursorama-Courant-Magali","",row[2],"","",new_amount,"")
+          // le montant (nombre ou texte) est normalisé par addAccountRow -> parseAmount
+          addAccountRow(account_rows,new_date,"Boursorama-Courant-Magali","",row[2],"","",row[6],"")
         }
       }
     }

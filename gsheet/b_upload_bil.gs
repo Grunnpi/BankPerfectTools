@@ -18,17 +18,11 @@ function importBIL(sheet) {
           if ( new_date instanceof Date && new_date != undefined) {
             new_date.setHours(0,0,0,0)
           } else {
-            console.error("ligne erreur [" + new_date + "] pas une date : " + row)
+            log_error("ligne erreur [" + new_date + "] pas une date : " + row)
           }
 
-          var new_amount = row[4]
-          if ( new_amount instanceof String && new_amount.indexOf(",") >= 0 ) {
-            new_amount = new_amount.replace(",", "")
-          }
-          if ( new_amount instanceof String && new_amount.indexOf(".") >= 0 ) {
-            new_amount = new_amount.replace(".", ",")
-          }
-          addAccountRow(account_rows,new_date,"BIL-Courant","",row[2] + "|" + row[3],"","",new_amount,"")
+          // le montant (nombre ou texte) est normalisé par addAccountRow -> parseAmount
+          addAccountRow(account_rows,new_date,"BIL-Courant","",row[2] + "|" + row[3],"","",row[4],"")
         }
       }
     }

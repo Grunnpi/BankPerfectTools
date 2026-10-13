@@ -4,14 +4,25 @@ function importOUTPUT(sheet) {
   var rowNumber = 0
   var tableIsOver = false
 
-  var account_rows = []
-
-  var row_bank = ""
-  var row_branch = ""
-  var row_account = ""
+  // clé = nom de l'onglet cible, valeur = tableau de lignes
+  var account_rows = {}
 
   var accountSheet = SpreadsheetApp.getActive().getSheetByName("Comptes")
   var accountDefinition = accountSheet.getDataRange().getDisplayValues();
+
+  // Index banque|agence|compte -> onglet (la première occurrence gagne, comme la recherche linéaire d'avant)
+  // Normalisation numérique pour garder la tolérance de l'ancien "==" ("00123" == 123)
+  var norm = function (v) {
+    var s = String(v).trim()
+    return (s !== "" && !isNaN(s)) ? String(Number(s)) : s
+  }
+  var accountIndex = {}
+  for (let i=1;i<accountDefinition.length;i++){
+    var k = norm(accountDefinition[i][7]) + "|" + norm(accountDefinition[i][8]) + "|" + norm(accountDefinition[i][9])
+    if ( !(k in accountIndex) ) {
+      accountIndex[k] = accountDefinition[i][0]
+    }
+  }
 
   data.forEach(function (row) {
     rowNumber++
@@ -22,28 +33,19 @@ function importOUTPUT(sheet) {
         } else {
           //log_debug("row " + rowNumber + " = " + row + " (with row[0]=[" + row[4] + "])")
           var new_date = row[4]
+          if ( !(new_date instanceof Date) ) {
+            log_error("ligne ignorée ligne " + rowNumber + " : [" + new_date + "] pas une date : " + row)
+            return
+          }
           new_date.setHours(0,0,0,0)
 
-          row_bank    = row[1]
-          row_branch  = row[2]
-          row_account = row[3]
+          var row_bank    = row[1]
+          var row_branch  = row[2]
+          var row_account = row[3]
 
           // search for account
-          var foundIt = false
-          var targetSheetName = ""
-          for (i=1;i<accountDefinition.length;i++){
-            if (
-                accountDefinition[i][7] == row_bank &&
-                accountDefinition[i][8] == row_branch &&
-                accountDefinition[i][9] == row_account 
-            ) {
-              //log_debug("Found targeting account [" + accountDefinition[i][0] + "]")
-              targetSheetName = accountDefinition[i][0]
-              foundIt = true
-              break
-            }
-          }
-          if ( !foundIt) {
+          var targetSheetName = accountIndex[norm(row_bank) + "|" + norm(row_branch) + "|" + norm(row_account)]
+          if ( targetSheetName === undefined ) {
             targetSheetName = "Import"
             log_debug("Account not found : don't know what to do with those lines !!! [" + row_bank + "|" + row_branch + "|" + row_account + "]")
           }
@@ -54,12 +56,8 @@ function importOUTPUT(sheet) {
             account_rows[targetSheetName] = []
           }
 
-          var new_amount = row[7]
-          if ( new_amount instanceof String && new_amount.indexOf(".") >= 0 ) {
-            new_amount = new_amount.replace(".", ",")
-          }
-
-          addAccountRow(account_rows[targetSheetName],new_date,targetSheetName,row[5],row[6],"","",new_amount,"")
+          // le montant (nombre ou texte) est normalisé par addAccountRow -> parseAmount
+          addAccountRow(account_rows[targetSheetName],new_date,targetSheetName,row[5],row[6],"","",row[7],"")
         }
       }
     }

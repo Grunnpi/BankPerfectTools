@@ -27,6 +27,32 @@ function rowMatchRule(rulesValues, the_row) {
   return the_rule_row_number
 }
 
+// Mémo du dernier libellé passé en majuscules : pour une même ligne, on boucle sur toutes
+// les règles avec le même libellé -> un seul toUpperCase() par ligne au lieu d'un par règle.
+var _memoLabel = null
+var _memoUpper = null
+function _upperLabel(label) {
+  if (label !== _memoLabel) {
+    _memoLabel = label
+    _memoUpper = label.toUpperCase()
+  }
+  return _memoUpper
+}
+
+// Pré-calcul (une seule fois par règle et par exécution) : mots-clés découpés et en majuscules
+function _compileRule(the_rule) {
+  if (the_rule._compiled) return the_rule._compiled
+  var caseSensitive = ( the_rule[IDX_RULE_MOT_CLEF_CASE_SENSITIVE] == MOT_CLEF_CASE_SENSITIVE )
+  var logic = the_rule[IDX_RULE_LOGIQUE_MOT_CLEF]
+  var raw = String(the_rule[IDX_RULE_MOT_CLEF])
+  var keywords = ( logic == "libellé" ) ? [raw] : raw.split("+")
+  if ( !caseSensitive ) {
+    keywords = keywords.map(function (k) { return k.toUpperCase() })
+  }
+  the_rule._compiled = { caseSensitive: caseSensitive, logic: logic, keywords: keywords }
+  return the_rule._compiled
+}
+
 /*
   Rules matcher :
   - label contains rule flag
@@ -34,57 +60,27 @@ function rowMatchRule(rulesValues, the_row) {
 */
 function isRowMatchRule(the_row, the_rule) {
   var row_label = the_row[3].toString()
-  var returnValue = false
 
-  if ( the_rule[IDX_RULE_STATUS] == "active" ) {
-    if ( the_rule[IDX_RULE_LOGIQUE_MOT_CLEF] == "libellé") {
-      if ( the_rule[IDX_RULE_MOT_CLEF_CASE_SENSITIVE] == MOT_CLEF_CASE_SENSITIVE ) {
-        if ( row_label.indexOf(the_rule[IDX_RULE_MOT_CLEF]) >= 0 )  {
-          returnValue = true
-        }
-      } else {
-        if ( row_label.toUpperCase().indexOf(the_rule[IDX_RULE_MOT_CLEF].toUpperCase()) >= 0 )  {
-          returnValue = true
-        }
-      }
-    }
-    else if ( the_rule[IDX_RULE_LOGIQUE_MOT_CLEF] == "et+") {
-      var all_labels = the_rule[IDX_RULE_MOT_CLEF].split("+")
-      var match_count = 0
-      for (var i=0;i<all_labels.length;i++){
-        if ( the_rule[IDX_RULE_MOT_CLEF_CASE_SENSITIVE] == MOT_CLEF_CASE_SENSITIVE ) {
-          if (row_label.indexOf(all_labels[i]) >= 0) {
-            match_count++
-          } 
-        }
-        else {
-          if (row_label.toUpperCase().indexOf(all_labels[i].toUpperCase()) >= 0) {
-            match_count++
-          } 
-        }
-      }
-      returnValue = ( match_count === all_labels.length)
-    }
-    else if ( the_rule[IDX_RULE_LOGIQUE_MOT_CLEF] == "ou+") {
-      var all_labels = the_rule[IDX_RULE_MOT_CLEF].split("+")
-      for (var i=0;i<all_labels.length;i++){
-        if ( the_rule[IDX_RULE_MOT_CLEF_CASE_SENSITIVE] == MOT_CLEF_CASE_SENSITIVE ) {
-          if (row_label.indexOf(all_labels[i]) >= 0) {
-            returnValue = true
-            break
-          } 
-        } else {
-          if (row_label.toUpperCase().indexOf(all_labels[i].toUpperCase()) >= 0) {
-            returnValue = true
-            break
-          } 
-        }
-      }
-    } else {
-      log_error("(" + row_label + ") ? Rules[" + the_rule[IDX_RULE_MOT_CLEF] + "] type[" + the_rule[IDX_RULE_LOGIQUE_MOT_CLEF] + "] unknown")
-    }
+  if ( the_rule[IDX_RULE_STATUS] != "active" ) {
+    return false
   }
-  return returnValue
+
+  var c = _compileRule(the_rule)
+  var label = c.caseSensitive ? row_label : _upperLabel(row_label)
+  var contains = function (keyword) { return label.indexOf(keyword) >= 0 }
+
+  if ( c.logic == "libellé" ) {
+    return contains(c.keywords[0])
+  }
+  if ( c.logic == "et+" ) {
+    return c.keywords.every(contains)
+  }
+  if ( c.logic == "ou+" ) {
+    return c.keywords.some(contains)
+  }
+
+  log_error("(" + row_label + ") ? Rules[" + the_rule[IDX_RULE_MOT_CLEF] + "] type[" + the_rule[IDX_RULE_LOGIQUE_MOT_CLEF] + "] unknown")
+  return false
 }
 
 
