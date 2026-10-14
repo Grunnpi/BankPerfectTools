@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Google Sans", Roboto, Arial, sans-serif;
+      font-size: 14px;
+      color: #202124;
+      background: #ffffff;
+      padding: 20px;
+      transition: background 0.3s;
+    }
+
+    /* ── 4 états : form (saisie) / busy (attente) / error / done ── */
+    body.busy  { background: #fef7e0; }
+    body.error { background: #fce8e6; }
+    body.done  { background: #e6f4ea; }
+    .view { display: none; }
+    body.form  .view-form,
+    body.busy  .view-busy,
+    body.error .view-error,
+    body.done  .view-done { display: block; }
+
+    /* ── formulaire ── */
+    label { display: block; font-weight: 600; margin: 12px 0 4px; }
+    label:first-child { margin-top: 0; }
+    select, input[type=file] { width: 100%; font-size: 14px; }
+    select { padding: 7px 8px; border: 1px solid #dadce0; border-radius: 4px; background: #fff; }
+    .hint { color: #5f6368; font-size: 12px; margin: 4px 0 0; }
+    .inline-error { color: #d93025; min-height: 18px; margin: 8px 0 0; font-size: 12px; }
+    button {
+      font-size: 14px; padding: 8px 22px; border: 0; border-radius: 4px;
+      background: #1a73e8; color: #fff; cursor: pointer;
+    }
+    button:hover { background: #1765cc; }
+    button.secondary { background: #fff; color: #1a73e8; border: 1px solid #dadce0; }
+    .actions { margin-top: 10px; text-align: right; }
+
+    /* ── attente ── */
+    .view-busy, .view-error, .view-done { text-align: center; padding-top: 14px; }
+    .spinner {
+      width: 46px; height: 46px; margin: 0 auto 14px;
+      border: 5px solid #fde293; border-top-color: #f9ab00; border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 17px; margin: 0 0 6px; font-weight: 600; }
+    .step { font-size: 14px; color: #5f6368; margin: 0 0 10px; }
+    .detail { font-size: 12px; color: #5f6368; margin: 0; }
+    .bar { height: 4px; margin: 16px auto 8px; width: 80%; background: #fde293; border-radius: 2px; overflow: hidden; position: relative; }
+    .bar::after {
+      content: ""; position: absolute; top: 0; bottom: 0; width: 35%;
+      background: #f9ab00; border-radius: 2px; animation: slide 1.3s ease-in-out infinite;
+    }
+    @keyframes slide { 0% { left: -35%; } 100% { left: 100%; } }
+    .icon { font-size: 40px; margin-bottom: 6px; }
+    #errMsg { color: #d93025; word-break: break-word; margin: 0 0 14px; }
+  </style>
+</head>
+<body class="form">
+
+  <!-- 1. Saisie -->
+  <div class="view view-form">
+    <label for="origin">Origine</label>
+    <select id="origin"></select>
+    <p class="hint" id="hint"></p>
+
+    <label for="fileInput">Fichier</label>
+    <input id="fileInput" type="file" />
+    <p class="inline-error" id="formError"></p>
+
+    <div class="actions">
+      <button id="uploadButton" onclick="startUpload()">Upload</button>
+    </div>
+  </div>
+
+  <!-- 2. Attente d'action -->
+  <div class="view view-busy">
+    <div class="spinner"></div>
+    <h2>Import en cours…</h2>
+    <p class="step" id="step"></p>
+    <p class="detail"><span id="busyOrigin"></span> · <span id="busyFile"></span></p>
+    <div class="bar"></div>
+    <p class="detail">Merci de patienter, ne fermez pas cette fenêtre.</p>
+  </div>
+
+  <!-- 3. Erreur -->
+  <div class="view view-error">
+    <div class="icon">⚠️</div>
+    <h2>Échec de l'import</h2>
+    <p id="errMsg"></p>
+    <button class="secondary" onclick="setState('form')">Retour</button>
+  </div>
+
+  <!-- 4. Terminé -->
+  <div class="view view-done">
+    <div class="icon">✅</div>
+    <h2>Import terminé</h2>
+  </div>
+
+  <script>
+    // Origines fournies par le serveur (getImportOrigins dans b_upload.gs)
+    const ORIGINS = <?!= JSON.stringify(origins) ?>;
+    const LAST_ORIGIN = <?!= JSON.stringify(lastOrigin) ?>;
+
+    const $ = function (id) { return document.getElementById(id); };
+
+    function setState(state) { document.body.className = state; }
+    function setStep(text) { $('step').textContent = text; }
+
+    function currentOrigin() {
+      return ORIGINS.find(function (o) { return o.id === $('origin').value; });
+    }
+
+    function onOriginChange() {
+      const o = currentOrigin();
+      $('hint').textContent = 'Fichier attendu : ' + o.hint;
+      $('fileInput').accept = o.accept;
+    }
+
+    function init() {
+      const sel = $('origin');
+      ORIGINS.forEach(function (o) {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.label;
+        sel.appendChild(opt);
+      });
+      if (LAST_ORIGIN && ORIGINS.some(function (o) { return o.id === LAST_ORIGIN; })) {
+        sel.value = LAST_ORIGIN;
+      }
+      sel.addEventListener('change', onOriginChange);
+      onOriginChange();
+      setState('form');
+    }
+
+    function startUpload() {
+      const file = $('fileInput').files[0];
+      const origin = currentOrigin();
+      $('formError').textContent = '';
+      if (!file) {
+        $('formError').textContent = 'Choisissez un fichier.';
+        return;
+      }
+
+      $('busyOrigin').textContent = origin.label;
+      $('busyFile').textContent = file.name;
+      setStep('Envoi du fichier…');
+      setState('busy');
+
+      const reader = new FileReader();
+      reader.onerror = function () { fail('Lecture du fichier impossible.'); };
+      reader.onload = function () {
+        // data:<mime>;base64,<données> -> on ne garde que les données (quel que soit le type MIME)
+        const base64 = reader.result.substring(reader.result.indexOf(',') + 1);
+        google.script.run
+          .withSuccessHandler(function () {
+            setStep('Import des opérations…');
+            runImport();
+          })
+          .withFailureHandler(fail)
+          .uploadFile(base64, file.name, origin.id);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function runImport() {
+      google.script.run
+        .withSuccessHandler(onDone)
+        .withFailureHandler(fail)
+        .importFile();
+    }
+
+    function onDone() {
+      setState('done');
+      google.script.run.displayToastAlert('Importation ok !');
+      setTimeout(function () { google.script.host.close(); }, 800);
+    }
+
+    function fail(err) {
+      $('errMsg').textContent = (err && err.message) ? err.message : String(err);
+      setState('error');
+    }
+
+    init();
+  </script>
+</body>
+</html>

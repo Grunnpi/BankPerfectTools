@@ -1,5 +1,30 @@
 const IMPORT_FOLDER_ID = "1Qn8LXy6b12xIslJGoFd7DbTfovWPipVp";
 
+/**
+ * Origines d'import disponibles dans la fenêtre unique (dialog_upload.html).
+ * Chaque origine garde son propre parsing : `run` reçoit le classeur converti (Spreadsheet)
+ * et appelle l'import spécifique (b_upload_cm.gs, b_upload_bil.gs, ...).
+ * Pour ajouter une origine : ajouter une entrée ici + sa fonction d'import.
+ * (`run` est une fonction enveloppe pour ne pas dépendre de l'ordre de chargement des fichiers.)
+ */
+const IMPORT_ORIGINS = [
+  { id: "CreditMutuel", label: "Crédit Mutuel", hint: "comptes.xlsm",                accept: ".xls,.xlsx,.xlsm",
+    run: function (ss) { importCreditMutuel(ss) } },                 // 1 onglet = 1 compte
+  { id: "BIL",          label: "BIL",           hint: "list_movements.csv",          accept: ".csv",
+    run: function (ss) { importBIL(ss.getSheets()[0]) } },            // 1 onglet pour 1 compte
+  { id: "output",       label: "Output",        hint: "output.csv",                  accept: ".csv",
+    run: function (ss) { importOUTPUT(ss.getSheets()[0]) } },         // 1 onglet pour plusieurs comptes
+  { id: "BOURSORAMA",   label: "Boursorama",    hint: "export-operations-xxx.csv",   accept: ".csv",
+    run: function (ss) { importBOURSORAMA(ss.getSheets()[0]) } }      // 1 onglet pour 1 compte
+];
+
+// Version sérialisable pour la fenêtre (sans les fonctions)
+function getImportOrigins() {
+  return IMPORT_ORIGINS.map(function (o) {
+    return { id: o.id, label: o.label, hint: o.hint, accept: o.accept };
+  });
+}
+
 function uploadFile(uploadedFile, fileName, accountType)
 {
   try{
@@ -94,6 +119,7 @@ function uploadFile(uploadedFile, fileName, accountType)
     var cache = CacheService.getScriptCache();
     cache.put("gsheet_imported_id",imported_file_id)
     cache.put("accountType",accountType)
+    PropertiesService.getUserProperties().setProperty("lastImportOrigin", accountType) // présélection à la prochaine ouverture
     
     log_info("importe & convertie [" + fileName + "]")
 
@@ -128,25 +154,16 @@ function importFile() {
       //displayToastAlert("Sheet cible [" + sheet.getName() + "]")
       log_debug("importFile> sheet[0].name=[" + sheet.getName() + "]")
     
-      switch (accountType) {
-        case "CreditMutuel":
-          importCreditMutuel(spreadsheet_imported) // multiple tab = multiple account
-          break
-        case "BIL":
-          importBIL(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
-          break
-        case "BOURSORAMA":
-          importBOURSORAMA(spreadsheet_imported.getSheets()[0]) // 1 tab for 1 account
-          break
-        case "output":
-          importOUTPUT(spreadsheet_imported.getSheets()[0]) // 1 tab for multiple account
-          break
-        default:
-          break;
+      const origin = IMPORT_ORIGINS.find(function (o) { return o.id === accountType })
+      if ( !origin ) {
+        log_error("Origine d'import inconnue [" + accountType + "]")
+        throw new Error("Origine d'import inconnue : " + accountType)
       }
+      origin.run(spreadsheet_imported)
       log_info("importation finie [" + spreadsheet_imported.getName() + "]")
     } else {
       log_warn("Rien a importer ou déjà en cours - stop")
+      throw new Error("Rien à importer (fichier expiré ou import déjà en cours). Réessayez l'upload.")
     }
   } finally {
     flushLogs();

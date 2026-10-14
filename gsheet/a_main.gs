@@ -10,33 +10,24 @@ function onOpen(e) {
     .addItem("⚠️ clear Logs","clearLogs")
     .addItem("⬇ trier Liquide","triageLiquide")
     .addSeparator()
-    .addItem('⏏ CreditMutuel.xls', 'showUploadDialogCM')
-    .addItem('⏏ BIL.csv', 'showUploadDialogBIL')
-    .addItem('⏏ output.csv', 'showUploadDialogOUTPUT')
-    .addItem('⏏ Boursorama.csv', 'showUploadDialogBOURSORAMA')
+    .addItem('⏏ Importer un fichier…', 'showUploadDialog')
     .addToUi();
 }
 
+/**
+ * Fenêtre d'import unique : le choix de l'origine (Crédit Mutuel, BIL, Output, Boursorama)
+ * se fait dans la fenêtre. Les origines sont déclarées dans IMPORT_ORIGINS (b_upload.gs).
+ */
+function showUploadDialog() {
+  var template = HtmlService.createTemplateFromFile('dialog_upload');
+  template.origins = getImportOrigins();
+  template.lastOrigin = PropertiesService.getUserProperties().getProperty("lastImportOrigin") || "";
 
-function showUploadDialogCM() {
-  showUploadDialog("cm")
-}
-function showUploadDialogBIL() {
-  showUploadDialog("bil")
-}
-function showUploadDialogOUTPUT() {
-  showUploadDialog("output")
-}
-function showUploadDialogBOURSORAMA() {
-  showUploadDialog("BOURSORAMA")
-}
-
-function showUploadDialog(type) {
-  var html = HtmlService.createHtmlOutputFromFile('dialog_upload_' + type)
-      .setWidth(400)
-      .setHeight(80);      
+  var html = template.evaluate()
+      .setWidth(440)
+      .setHeight(270);
   SpreadsheetApp.getUi()
-      .showModalDialog(html, 'Charger un fichier');
+      .showModalDialog(html, 'Importer un fichier');
 }
 
 function triageLiquide() {
